@@ -34,7 +34,14 @@
         "extensions": [
           ".sapf"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./sapf-language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "sapf",
+        "scopeName": "source.sapf",
+        "path": "./syntaxes/sapf.tmLanguage.json"
       }
     ],
     "configuration": {
@@ -44,7 +51,7 @@
         "vsapf.binaryPath": {
           "type": "string",
           "default": "/usr/local/bin/sapf",
-          "description": "Path to the esolang evaluator binary"
+          "description": "Path to the sapf evaluator binary"
         },
         "vsapf.binaryArgs": {
           "type": "array",
