@@ -1,0 +1,79 @@
+{
+  "name": "vsapf",
+  "displayName": "vsapf",
+  "description": "SAPF support",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.99.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "vsapf.evalLine",
+        "title": "SAPF: Evaluate Current Line"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "vsapf.evalLine",
+        "key": "ctrl+enter",
+        "when": "editorTextFocus && editorLangId == sapf"
+      }
+    ],
+    "languages": [
+      {
+        "id": "sapf",
+        "aliases": [
+          "SAPF"
+        ],
+        "extensions": [
+          ".sapf"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "SAPF Evaluator Configuration",
+      "properties": {
+        "vsapf.binaryPath": {
+          "type": "string",
+          "default": "/usr/local/bin/sapf",
+          "description": "Path to the esolang evaluator binary"
+        },
+        "vsapf.binaryArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Arguments passed to the evaluator binary"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.101.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
