@@ -1,14 +1,16 @@
 {
   "name": "vsapf",
-  "displayName": "vsapf",
-  "description": "SAPF support",
+  "displayName": "SAPF Language",
+  "description": "SAPF language support",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.101.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages"
   ],
+  "publisher": "victorkashirin",
+  "icon": "images/vsapf.png",
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {

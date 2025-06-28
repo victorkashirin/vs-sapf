@@ -61,7 +61,7 @@ function parseAndPopulateKeywords(categories: any) {
 				}
 			}
 		}
-		console.log(`Loaded ${sapfKeywords.size} SAPF keywords.`);
+		console.log(`Loaded ${sapfKeywords.size} SAPF keywords`);
 	} catch (e) {
 		console.error("Failed to parse SAPF keywords JSON:", e);
 	}
@@ -71,40 +71,39 @@ function getBlockOrLine(editor: vscode.TextEditor): string {
 	const text = editor.document.getText();
 	const cursorOffset = editor.document.offsetAt(editor.selection.active);
 
-	// Find block enclosed in ( ... ) that contains the cursor
-	let start = -1, end = -1, balance = 0;
-	for (let i = cursorOffset - 1; i >= 0; i--) {
-		const c = text[i];
-		if (c === ')') balance++;
-		else if (c === '(') {
-			if (balance === 0) {
-				start = i;
-				break;
+	let highestStart = -1;
+	let highestEnd = -1;
+
+	const openParensStack: number[] = [];
+
+	for (let i = 0; i < text.length; i++) {
+		const char = text[i];
+
+		if (char === '(') {
+			openParensStack.push(i);
+		} else if (char === ')') {
+			if (openParensStack.length > 0) {
+				const currentStart = openParensStack.pop()!;
+				const currentEnd = i;
+
+				if (cursorOffset > currentStart && cursorOffset < currentEnd) {
+					if (highestStart === -1 || currentStart < highestStart) {
+						highestStart = currentStart;
+						highestEnd = currentEnd;
+					}
+				}
 			}
-			balance--;
 		}
 	}
 
-	balance = 0;
-	for (let i = cursorOffset; i < text.length; i++) {
-		const c = text[i];
-		if (c === '(') balance++;
-		else if (c === ')') {
-			if (balance === 0) {
-				end = i;
-				break;
-			}
-			balance--;
-		}
-	}
-
-	if (start !== -1 && end !== -1) {
-		const block = text.slice(start + 1, end);
-		const lines = block.split(/\r?\n/).map(line => line.trim());
+	// If we successfully found a highest enclosing block that contains the cursor
+	if (highestStart !== -1 && highestEnd !== -1) {
+		// Extract the content between the highest matching parentheses
+		const blockContent = text.slice(highestStart + 1, highestEnd);
+		const lines = blockContent.split(/\r?\n/).map(line => line.trim());
 		return lines.join('\n');
 	}
 
-	// Fallback to current line
 	return editor.document.lineAt(editor.selection.active.line).text.trim();
 }
 
