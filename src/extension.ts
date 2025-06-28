@@ -1,24 +1,70 @@
-import { log } from 'console';
 import * as vscode from 'vscode';
+import * as keywordsData from './language.json';
 
 let sapfTerminal: vscode.Terminal | undefined;
 
-const keywordDecorationType = vscode.window.createTextEditorDecorationType({
-	fontWeight: 'bold',
-});
+interface KeywordInfo {
+	signature: string | null;
+	description: string;
+	category: string;
+	keyword: string; // Store the keyword itself for easier access
+	special: string | null; // For annotations like @zzz, @kkk etc.
+}
 
-function highlightKeywords(editor: vscode.TextEditor, keywords: string[]) {
-	const regex = new RegExp(`\\b(${keywords.join('|')})\\b`, 'g');
-	const text = editor.document.getText();
-	const decorations: vscode.DecorationOptions[] = [];
+const sapfKeywords: Map<string, KeywordInfo> = new Map();
 
-	for (const match of text.matchAll(regex)) {
-		const start = editor.document.positionAt(match.index!);
-		const end = editor.document.positionAt(match.index! + match[0].length);
-		decorations.push({ range: new vscode.Range(start, end) });
+function ensureTerminal() {
+	if (!sapfTerminal) {
+		const binaryPath = vscode.workspace.getConfiguration().get<string>('vsapf.binaryPath') || '';
+		const binaryArgs = vscode.workspace.getConfiguration().get<string[]>('vsapf.binaryArgs') || [];
+		sapfTerminal = vscode.window.createTerminal({ name: 'sapf' });
+		sapfTerminal.sendText(binaryPath)
+		sapfTerminal.show(true);
 	}
+}
 
-	editor.setDecorations(keywordDecorationType, decorations);
+
+function parseAndPopulateKeywords(categories: any) {
+	try {
+		for (const categoryName in categories) {
+			if (Object.prototype.hasOwnProperty.call(categories, categoryName)) {
+				const category = categories[categoryName];
+				const items = category.items;
+
+				for (const keyword in items) {
+					if (Object.prototype.hasOwnProperty.call(items, keyword)) {
+						let description = items[keyword];
+						let signature: string | null = null;
+						let special: string | null = null;
+
+						// Regex to find:
+						// 1. Optional special annotation like @zzz, @kkk (group 1)
+						// 2. The signature like (a b --> c) (group 2)
+						// 3. The remaining description (group 3)
+						const regex = /^(?:(@[a-z]+)\s*)?(\([^)]*?\s*-->\s*[^)]*?\))?\s*(.*)$/;
+						const match = description.match(regex);
+
+						if (match) {
+							special = match[1] || null;
+							signature = match[2] || null;
+							description = match[3] || description; // Use remaining part or original if no match
+						}
+
+						sapfKeywords.set(keyword, {
+							keyword: keyword,
+							signature: signature,
+							description: description.trim(), // Trim leading/trailing whitespace
+							category: categoryName,
+							special: special
+						});
+					}
+				}
+			}
+		}
+		console.log(`Loaded ${sapfKeywords.size} SAPF keywords.`);
+	} catch (e) {
+		console.error("Failed to parse SAPF keywords JSON:", e);
+	}
 }
 
 function getBlockOrLine(editor: vscode.TextEditor): string {
@@ -63,72 +109,90 @@ function getBlockOrLine(editor: vscode.TextEditor): string {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-	// const keywords = ["quit", "sinosc", "stop", "helpall"];
 
-	// vscode.window.onDidChangeActiveTextEditor(editor => {
-	// 	if (editor) {
-	// 		highlightKeywords(editor, keywords);
-	// 	}
-	// });
+	parseAndPopulateKeywords(keywordsData)
 
-	// if (vscode.window.activeTextEditor) {
-	// 	highlightKeywords(vscode.window.activeTextEditor, keywords);
-	// }
+	context.subscriptions.push(vscode.languages.registerCompletionItemProvider("sapf", completionItemProvider));
+	context.subscriptions.push(vscode.languages.registerHoverProvider("sapf", hoverProvider));
+	context.subscriptions.push(vscode.commands.registerCommand('vsapf.evalLine', evaluateLine));
+	context.subscriptions.push(vscode.commands.registerCommand('vsapf.stop', stopSapf))
 
-	// vscode.workspace.onDidChangeTextDocument(event => {
-	// 	const editor = vscode.window.activeTextEditor;
-	// 	if (editor && event.document === editor.document) {
-	// 		highlightKeywords(editor, keywords);
-	// 	}
-	// });
-
-
-	const disposable = vscode.commands.registerCommand('vsapf.evalLine', () => {
-		const editor = vscode.window.activeTextEditor;
-		if (!editor) {
-			return;
-		}
-
-		const line = getBlockOrLine(editor);
-
-		const binaryPath = vscode.workspace.getConfiguration().get<string>('vsapf.binaryPath') || '';
-		const binaryArgs = vscode.workspace.getConfiguration().get<string[]>('vsapf.binaryArgs') || [];
-
-		// Create terminal if not exists
-		if (!sapfTerminal) {
-			sapfTerminal = vscode.window.createTerminal({
-				name: 'SAPF REPL',
-				shellPath: binaryPath,
-				shellArgs: binaryArgs
-			});
-			sapfTerminal.show(true);
-		}
-
-		// Send current line to terminal
-		sapfTerminal.sendText(line, true);
-	});
-
-	context.subscriptions.push(disposable);
-
-	context.subscriptions.push(vscode.window.onDidCloseTerminal(async terminal => {
-		if (terminal === sapfTerminal) {
-			const pid = await sapfTerminal.processId;
-			if (pid) {
-				console.log(`Terminal process ID: ${pid}. Attempting to terminate.`);
-				try {
-					process.kill(pid, 'SIGKILL');
-					console.log(`Sent SIGKILL to PID ${pid}`);
-				} catch (e: any) {
-					if (e.code === 'ESRCH') {
-						console.log(`Process ${pid} not found (already exited).`);
-					} else {
-						console.warn(`Error sending signal to PID ${pid}:`, e);
-					}
-				}
-			}
+	vscode.window.onDidCloseTerminal((closedTerminal) => {
+		if (closedTerminal === sapfTerminal) {
 			sapfTerminal = undefined;
 		}
-	}));
+	});
+}
+
+const completionItemProvider: vscode.CompletionItemProvider = {
+	provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
+		const linePrefix = document.lineAt(position).text.substring(0, position.character);
+		// Simple word regex to find the current word being typed
+		const wordMatch = linePrefix.match(/[\w\-\?]+$/);
+		const currentWord = wordMatch ? wordMatch[0] : '';
+
+		if (!currentWord) {
+			return undefined;
+		}
+
+		const completionItems: vscode.CompletionItem[] = [];
+		for (const [keywordName, keywordInfo] of sapfKeywords.entries()) {
+			if (keywordName.startsWith(currentWord)) {
+				const item = new vscode.CompletionItem(keywordName, vscode.CompletionItemKind.Function);
+
+				// Use signature for detail or first line of description
+				item.detail = keywordInfo.signature || keywordInfo.description.split('\n')[0];
+
+				// Create Markdown documentation
+				const docs = new vscode.MarkdownString();
+				docs.appendMarkdown(`**Category**: ${keywordInfo.category}\n\n`);
+				docs.appendCodeblock(`${keywordName} ${keywordInfo.special ? keywordInfo.special + ' ' : ''}${keywordInfo.signature || '(no signature)'}`, "sapf");
+				docs.appendMarkdown(`\n\n${keywordInfo.description}`);
+
+				item.documentation = docs;
+				completionItems.push(item);
+			}
+		}
+		return completionItems;
+	}
+};
+
+const hoverProvider: vscode.HoverProvider = {
+	provideHover(document: vscode.TextDocument, position: vscode.Position) {
+		const range = document.getWordRangeAtPosition(position);
+		if (!range) {
+			return undefined;
+		}
+		const word = document.getText(range);
+		const keywordInfo = sapfKeywords.get(word);
+
+		if (keywordInfo) {
+			const docs = new vscode.MarkdownString();
+			docs.appendMarkdown(`**Category**: ${keywordInfo.category}\n\n`);
+			docs.appendCodeblock(`${keywordInfo.keyword} ${keywordInfo.special ? keywordInfo.special + ' ' : ''}${keywordInfo.signature || '(no signature)'}`, "sapf");
+			docs.appendMarkdown(`\n\n${keywordInfo.description}`);
+			return new vscode.Hover(docs);
+		}
+		return undefined;
+	}
+}
+
+function evaluateLine() {
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) {
+		return;
+	}
+	const line = getBlockOrLine(editor);
+	ensureTerminal();
+	if (sapfTerminal) {
+		sapfTerminal.sendText(line, true);
+	}
+}
+
+function stopSapf() {
+	if (sapfTerminal) {
+		sapfTerminal.sendText("stop", true);
+	}
 }
 
 export async function deactivate() {

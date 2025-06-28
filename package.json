@@ -4,7 +4,7 @@
   "description": "SAPF support",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.99.0"
+    "vscode": "^1.101.0"
   },
   "categories": [
     "Other"
@@ -16,12 +16,22 @@
       {
         "command": "vsapf.evalLine",
         "title": "SAPF: Evaluate Current Line"
+      },
+      {
+        "command": "vsapf.stop",
+        "title": "SAPF: Stop sound"
       }
     ],
     "keybindings": [
       {
         "command": "vsapf.evalLine",
-        "key": "ctrl+enter",
+        "key": "shift+enter",
+        "when": "editorTextFocus && editorLangId == sapf"
+      },
+      {
+        "command": "vsapf.stop",
+        "key": "ctrl+.",
+        "mac": "cmd+.",
         "when": "editorTextFocus && editorLangId == sapf"
       }
     ],
@@ -70,17 +80,19 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "package": "npx vsce package --allow-missing-repository"
   },
   "devDependencies": {
-    "@types/vscode": "^1.101.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/vscode": "^1.101.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
-    "eslint": "^9.25.1",
-    "typescript": "^5.8.3",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.6.0",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3"
   }
 }
