@@ -11,7 +11,9 @@
   ],
   "publisher": "victorkashirin",
   "icon": "images/vsapf.png",
-  "activationEvents": [],
+  "activationEvents": [
+    "workspaceContains:**/{*.sapf}"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -21,7 +23,19 @@
       },
       {
         "command": "vsapf.stop",
-        "title": "SAPF: Stop sound"
+        "title": "sapf: <stop> stop any audio playing"
+      },
+      {
+        "command": "vsapf.clear",
+        "title": "sapf: <clear> clear everything off the stack"
+      },
+      {
+        "command": "vsapf.cleard",
+        "title": "sapf: <cleard> clear all but the top item from the stack"
+      },
+      {
+        "command": "vsapf.quit",
+        "title": "sapf: <quit> quit sapf"
       }
     ],
     "keybindings": [
@@ -34,6 +48,12 @@
         "command": "vsapf.stop",
         "key": "ctrl+.",
         "mac": "cmd+.",
+        "when": "editorTextFocus && editorLangId == sapf"
+      },
+      {
+        "command": "vsapf.clear",
+        "key": "ctrl+shift+.",
+        "mac": "cmd+shift+.",
         "when": "editorTextFocus && editorLangId == sapf"
       }
     ],
@@ -72,6 +92,11 @@
           },
           "default": [],
           "description": "Arguments passed to the evaluator binary"
+        },
+        "vsapf.autostart": {
+          "type": "boolean",
+          "description": "Start sapf automatically when opening sapf file?",
+          "default": true
         }
       }
     }

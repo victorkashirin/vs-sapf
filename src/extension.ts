@@ -13,17 +13,6 @@ interface KeywordInfo {
 
 const sapfKeywords: Map<string, KeywordInfo> = new Map();
 
-function ensureTerminal() {
-	if (!sapfTerminal) {
-		const binaryPath = vscode.workspace.getConfiguration().get<string>('vsapf.binaryPath') || '';
-		const binaryArgs = vscode.workspace.getConfiguration().get<string[]>('vsapf.binaryArgs') || [];
-		sapfTerminal = vscode.window.createTerminal({ name: 'sapf' });
-		sapfTerminal.sendText(binaryPath)
-		sapfTerminal.show(true);
-	}
-}
-
-
 function parseAndPopulateKeywords(categories: any) {
 	try {
 		for (const categoryName in categories) {
@@ -108,13 +97,21 @@ function getBlockOrLine(editor: vscode.TextEditor): string {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+	const configuration = vscode.workspace.getConfiguration();
 
 	parseAndPopulateKeywords(keywordsData)
 
 	context.subscriptions.push(vscode.languages.registerCompletionItemProvider("sapf", completionItemProvider));
 	context.subscriptions.push(vscode.languages.registerHoverProvider("sapf", hoverProvider));
 	context.subscriptions.push(vscode.commands.registerCommand('vsapf.evalLine', evaluateLine));
-	context.subscriptions.push(vscode.commands.registerCommand('vsapf.stop', stopSapf))
+	context.subscriptions.push(vscode.commands.registerCommand('vsapf.stop', sapfCommand("stop")))
+	context.subscriptions.push(vscode.commands.registerCommand('vsapf.clear', sapfCommand("clear")))
+	context.subscriptions.push(vscode.commands.registerCommand('vsapf.cleard', sapfCommand("cleard")))
+	context.subscriptions.push(vscode.commands.registerCommand('vsapf.quit', sapfCommand("quit")))
+
+	if (configuration.get<boolean>("vsapf.autostart")) {
+		ensureRepl();
+	}
 
 	vscode.window.onDidCloseTerminal((closedTerminal) => {
 		if (closedTerminal === sapfTerminal) {
@@ -176,22 +173,34 @@ const hoverProvider: vscode.HoverProvider = {
 	}
 }
 
+function ensureRepl() {
+	if (!sapfTerminal) {
+		// const binaryArgs = vscode.workspace.getConfiguration().get<string[]>('vsapf.binaryArgs') || [];
+		sapfTerminal = vscode.window.createTerminal({ name: 'sapf' });
+		const binaryPath = vscode.workspace.getConfiguration().get<string>('vsapf.binaryPath') || '';
+		sapfTerminal.sendText(binaryPath)
+		sapfTerminal.show(true);
+	}
+}
+
 function evaluateLine() {
 	const editor = vscode.window.activeTextEditor;
 	if (!editor) {
 		return;
 	}
 	const line = getBlockOrLine(editor);
-	ensureTerminal();
-	if (sapfTerminal) {
-		sapfTerminal.sendText(line, true);
+	sendCodeToRepl(line);
+}
+
+function sapfCommand(command: string): () => void {
+	return function () {
+		sendCodeToRepl(command);
 	}
 }
 
-function stopSapf() {
-	if (sapfTerminal) {
-		sapfTerminal.sendText("stop", true);
-	}
+function sendCodeToRepl(code: string) {
+	ensureRepl();
+	sapfTerminal?.sendText(code, true);
 }
 
 export async function deactivate() {

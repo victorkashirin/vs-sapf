@@ -69,7 +69,6 @@
     "description": "Operations on functions.",
     "items": {
       "Y": "(funA --> funB) Y combinator. funB calls funA with the last argument being funB itself. Currently the only way to do recursion.",
-      "e.g.": "\\x f [x 2 < \\[1] \\[ x x -- f *] if] Y = factorial    7 factorial --> 5040",
       "noeach": "(fun --> fun) sets a flag in the function so that it will pass through arguments with @ operators without mapping them.",
       "!": "(... f --> ...) apply the function to its arguments, observing @ arguments as appropriate.",
       "!e": "(form fun --> ...) for each argument in the function, find the same named fields in the form and push those values as arguments to the function.",
