@@ -205,10 +205,12 @@ const hoverProvider: vscode.HoverProvider = {
 
 function ensureRepl() {
 	if (!sapfTerminal) {
-		// const binaryArgs = vscode.workspace.getConfiguration().get<string[]>('sapf.binaryArgs') || [];
 		sapfTerminal = vscode.window.createTerminal({ name: 'sapf' });
-		const binaryPath = vscode.workspace.getConfiguration().get<string>('sapf.binaryPath') || '';
-		sapfTerminal.sendText(binaryPath)
+		const configuration = vscode.workspace.getConfiguration();
+		const binaryPath = configuration.get<string>('sapf.binaryPath') || '';
+		const preludePath = configuration.get<string>('sapf.preludePath') || '';
+		const command = binaryPath + (preludePath ? ` -p ${preludePath}` : '');
+		sapfTerminal.sendText(command)
 		sapfTerminal.show(true);
 	}
 }

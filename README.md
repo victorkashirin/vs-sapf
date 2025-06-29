@@ -1,21 +1,25 @@
-# SAPF support for VS Code
+# SAPF Support for VS Code
 
-This extension allows to interactively work with sapf REPL. It comes «batteries included», and doesn't rely on
-Main features:
-- Commands for line, selection and code block evaluation (surrounded by parenthesis)
-- Function autocomplete and help on hover (configuration courtesy of [sapf-lsp](https://github.com/vasilymilovidov/sapf-lsp))
-- Support for commands `stop`, `clear`, `cleard`, `quit`.
+This extension provides interactive support for working with the [sapf](https://github.com/lfnoise/sapf/) REPL. It comes "batteries included" and does not rely on any external setup.
 
+### Features
 
-There's another excellent vscode extension for sapf [vscode-sapf](https://github.com/chairbender/vscode-sapf) by chairbender. Main difference is that it relies on extenral lsp-server, which has it benefits, but requires more effort to set up.
+* Commands for evaluating the current line, selection, or code block (surrounded by parentheses)
+* Function autocompletion and hover-based documentation (powered by config from [sapf-lsp](https://github.com/vasilymilovidov/sapf-lsp))
+* Built-in support for `stop`, `clear`, `cleard`, and `quit` commands
+* Support for a custom prelude file
 
-Default shortcuts:
-- `cmd+enter`: evaluate line or selection
-- `shift+enter`: evaluate block, line (if block not found) or selection
-- `cmd+.`: stop sound
-- `cmd+shift+.`: clear stack
+There is also an excellent VS Code extension for `sapf` by [chairbender](https://github.com/chairbender/vscode-sapf). The main difference is that it relies on an external LSP server. While this approach has its benefits, it requires more setup effort.
 
-Inspiration:
-- [vscode-sapf](https://github.com/chairbender/vscode-sapf)
-- [SAPF for NVIM](https://github.com/salkin-mada/sapf.nvim/tree/main)
-- [Tidalcycles](https://github.com/tidalcycles/vscode-tidalcycles/tree/main) for VSCode
+### Default Shortcuts
+
+* `Cmd+Enter`: Evaluate the current line or selection
+* `Shift+Enter`: Evaluate the current block, or the line/selection if no block is found
+* `Cmd+.`: Stop sound
+* `Cmd+Shift+.`: Clear the stack
+
+### Inspiration
+
+* [vscode-sapf](https://github.com/chairbender/vscode-sapf)
+* [SAPF for NVIM](https://github.com/salkin-mada/sapf.nvim/tree/main)
+* [TidalCycles for VS Code](https://github.com/tidalcycles/vscode-tidalcycles/tree/main)

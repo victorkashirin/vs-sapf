@@ -106,13 +106,10 @@
           "default": "sapf",
           "description": "Path to the sapf evaluator binary"
         },
-        "sapf.binaryArgs": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": [],
-          "description": "Arguments passed to the evaluator binary"
+        "sapf.preludePath": {
+          "type": "string",
+          "default": "",
+          "description": "Custom path to prelude file"
         },
         "sapf.autostart": {
           "type": "boolean",
