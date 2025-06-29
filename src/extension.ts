@@ -88,6 +88,10 @@ function getBlockOrLine(editor: vscode.TextEditor): string {
 	// If we successfully found a highest enclosing block that contains the cursor
 	if (highestStart !== -1 && highestEnd !== -1) {
 		// Extract the content between the highest matching parentheses
+		const startPosition = editor.document.positionAt(highestStart);
+		const endPosition = editor.document.positionAt(highestEnd);
+		const blockRange = new vscode.Range(startPosition, endPosition);
+		flashRange(editor, blockRange);
 		const blockContent = text.slice(highestStart + 1, highestEnd);
 		const lines = blockContent.split(/\r?\n/).map(line => line.trim());
 		return lines.join('\n');
@@ -208,4 +212,19 @@ export async function deactivate() {
 		sapfTerminal.dispose();
 		sapfTerminal = undefined;
 	}
+}
+
+function flashRange(editor: vscode.TextEditor, range: vscode.Range) {
+	const flashBackgroundColor = new vscode.ThemeColor('editor.wordHighlightBackground');
+	const evaluateDecorator = vscode.window.createTextEditorDecorationType({
+		backgroundColor: flashBackgroundColor,
+		isWholeLine: true,
+		rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed
+	});
+
+	editor.setDecorations(evaluateDecorator, [range]);
+
+	setTimeout(() => {
+		evaluateDecorator.dispose();
+	}, 200);
 }
