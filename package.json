@@ -1,5 +1,5 @@
 {
-  "name": "vsapf",
+  "name": "vs-sapf",
   "displayName": "SAPF Language",
   "description": "SAPF language support",
   "version": "0.0.1",
@@ -10,7 +10,7 @@
     "Programming Languages"
   ],
   "publisher": "victorkashirin",
-  "icon": "images/vsapf.png",
+  "icon": "images/sapf.png",
   "activationEvents": [
     "workspaceContains:**/{*.sapf}"
   ],
@@ -18,43 +18,53 @@
   "contributes": {
     "commands": [
       {
-        "command": "vsapf.evalLine",
-        "title": "SAPF: Evaluate Current Line"
+        "command": "sapf.evalLine",
+        "title": "Evaluate current line or selection"
       },
       {
-        "command": "vsapf.stop",
+        "command": "sapf.evalBlock",
+        "title": "Evaluate block surrounded by parenthesis or selection"
+      },
+      {
+        "command": "sapf.stop",
         "title": "sapf: <stop> stop any audio playing"
       },
       {
-        "command": "vsapf.clear",
+        "command": "sapf.clear",
         "title": "sapf: <clear> clear everything off the stack"
       },
       {
-        "command": "vsapf.cleard",
+        "command": "sapf.cleard",
         "title": "sapf: <cleard> clear all but the top item from the stack"
       },
       {
-        "command": "vsapf.quit",
+        "command": "sapf.quit",
         "title": "sapf: <quit> quit sapf"
       }
     ],
     "keybindings": [
       {
-        "command": "vsapf.evalLine",
-        "key": "shift+enter",
-        "when": "editorTextFocus && editorLangId == sapf"
+        "command": "sapf.evalLine",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "editorTextFocus && editorLangId == 'sapf'"
       },
       {
-        "command": "vsapf.stop",
+        "command": "sapf.evalBlock",
+        "key": "shift+enter",
+        "when": "editorTextFocus && editorLangId == 'sapf'"
+      },
+      {
+        "command": "sapf.stop",
         "key": "ctrl+.",
         "mac": "cmd+.",
-        "when": "editorTextFocus && editorLangId == sapf"
+        "when": "editorTextFocus && editorLangId == 'sapf'"
       },
       {
-        "command": "vsapf.clear",
+        "command": "sapf.clear",
         "key": "ctrl+shift+.",
         "mac": "cmd+shift+.",
-        "when": "editorTextFocus && editorLangId == sapf"
+        "when": "editorTextFocus && editorLangId == 'sapf'"
       }
     ],
     "languages": [
@@ -80,12 +90,12 @@
       "type": "object",
       "title": "SAPF Evaluator Configuration",
       "properties": {
-        "vsapf.binaryPath": {
+        "sapf.binaryPath": {
           "type": "string",
-          "default": "/usr/local/bin/sapf",
+          "default": "sapf",
           "description": "Path to the sapf evaluator binary"
         },
-        "vsapf.binaryArgs": {
+        "sapf.binaryArgs": {
           "type": "array",
           "items": {
             "type": "string"
@@ -93,7 +103,7 @@
           "default": [],
           "description": "Arguments passed to the evaluator binary"
         },
-        "vsapf.autostart": {
+        "sapf.autostart": {
           "type": "boolean",
           "description": "Start sapf automatically when opening sapf file?",
           "default": true

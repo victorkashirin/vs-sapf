@@ -50,13 +50,36 @@ function parseAndPopulateKeywords(categories: any) {
 				}
 			}
 		}
-		console.log(`Loaded ${sapfKeywords.size} SAPF keywords`);
+		console.debug(`Loaded ${sapfKeywords.size} SAPF keywords`);
 	} catch (e) {
 		console.error("Failed to parse SAPF keywords JSON:", e);
 	}
 }
 
-function getBlockOrLine(editor: vscode.TextEditor): string {
+interface BlockInfo {
+	text: string;
+	range: vscode.Range;
+}
+
+function getLine(editor: vscode.TextEditor): BlockInfo {
+	const selectedText = editor.document.getText(editor.selection);
+	if (selectedText) {
+		return { text: selectedText, range: editor.selection };
+	}
+
+	const currentLine = editor.document.lineAt(editor.selection.active.line);
+	return {
+		text: currentLine.text.trim(),
+		range: currentLine.range
+	};
+}
+
+function getBlockOrLine(editor: vscode.TextEditor): BlockInfo {
+	const selectedText = editor.document.getText(editor.selection);
+	if (selectedText) {
+		return { text: selectedText, range: editor.selection };
+	}
+
 	const text = editor.document.getText();
 	const cursorOffset = editor.document.offsetAt(editor.selection.active);
 
@@ -91,29 +114,32 @@ function getBlockOrLine(editor: vscode.TextEditor): string {
 		const startPosition = editor.document.positionAt(highestStart);
 		const endPosition = editor.document.positionAt(highestEnd);
 		const blockRange = new vscode.Range(startPosition, endPosition);
-		flashRange(editor, blockRange);
 		const blockContent = text.slice(highestStart + 1, highestEnd);
 		const lines = blockContent.split(/\r?\n/).map(line => line.trim());
-		return lines.join('\n');
+		return { text: lines.join('\n'), range: blockRange };
 	}
 
-	return editor.document.lineAt(editor.selection.active.line).text.trim();
+	const currentLine = editor.document.lineAt(editor.selection.active.line);
+	return {
+		text: currentLine.text.trim(),
+		range: currentLine.range
+	};
 }
 
 export function activate(context: vscode.ExtensionContext) {
 	const configuration = vscode.workspace.getConfiguration();
-
 	parseAndPopulateKeywords(keywordsData)
 
 	context.subscriptions.push(vscode.languages.registerCompletionItemProvider("sapf", completionItemProvider));
 	context.subscriptions.push(vscode.languages.registerHoverProvider("sapf", hoverProvider));
-	context.subscriptions.push(vscode.commands.registerCommand('vsapf.evalLine', evaluateLine));
-	context.subscriptions.push(vscode.commands.registerCommand('vsapf.stop', sapfCommand("stop")))
-	context.subscriptions.push(vscode.commands.registerCommand('vsapf.clear', sapfCommand("clear")))
-	context.subscriptions.push(vscode.commands.registerCommand('vsapf.cleard', sapfCommand("cleard")))
-	context.subscriptions.push(vscode.commands.registerCommand('vsapf.quit', sapfCommand("quit")))
+	context.subscriptions.push(vscode.commands.registerCommand('sapf.evalLine', evaluateLine));
+	context.subscriptions.push(vscode.commands.registerCommand('sapf.evalBlock', evaluateBlock));
+	context.subscriptions.push(vscode.commands.registerCommand('sapf.stop', sapfCommand("stop")))
+	context.subscriptions.push(vscode.commands.registerCommand('sapf.clear', sapfCommand("clear")))
+	context.subscriptions.push(vscode.commands.registerCommand('sapf.cleard', sapfCommand("cleard")))
+	context.subscriptions.push(vscode.commands.registerCommand('sapf.quit', sapfCommand("quit")))
 
-	if (configuration.get<boolean>("vsapf.autostart")) {
+	if (configuration.get<boolean>("sapf.autostart")) {
 		ensureRepl();
 	}
 
@@ -179,9 +205,9 @@ const hoverProvider: vscode.HoverProvider = {
 
 function ensureRepl() {
 	if (!sapfTerminal) {
-		// const binaryArgs = vscode.workspace.getConfiguration().get<string[]>('vsapf.binaryArgs') || [];
+		// const binaryArgs = vscode.workspace.getConfiguration().get<string[]>('sapf.binaryArgs') || [];
 		sapfTerminal = vscode.window.createTerminal({ name: 'sapf' });
-		const binaryPath = vscode.workspace.getConfiguration().get<string>('vsapf.binaryPath') || '';
+		const binaryPath = vscode.workspace.getConfiguration().get<string>('sapf.binaryPath') || '';
 		sapfTerminal.sendText(binaryPath)
 		sapfTerminal.show(true);
 	}
@@ -192,8 +218,19 @@ function evaluateLine() {
 	if (!editor) {
 		return;
 	}
-	const line = getBlockOrLine(editor);
-	sendCodeToRepl(line);
+	const blockInfo = getLine(editor);
+	flashRange(editor, blockInfo.range);
+	sendCodeToRepl(blockInfo.text);
+}
+
+function evaluateBlock() {
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) {
+		return;
+	}
+	const blockInfo = getBlockOrLine(editor);
+	flashRange(editor, blockInfo.range);
+	sendCodeToRepl(blockInfo.text);
 }
 
 function sapfCommand(command: string): () => void {
