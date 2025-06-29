@@ -4,12 +4,23 @@
   "description": "Sound As Pure Form (SAPF) language support",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.101.0"
+    "vscode": "^1.98.0"
   },
   "categories": [
     "Programming Languages"
   ],
+  "keywords": [
+    "SAPF",
+    "Sound As Pure Form",
+    "algorave",
+    "audio"
+  ],
   "publisher": "victorkashirin",
+  "homepage": "https://github.com/victorkashirin/vs-sapf",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/victorkashirin/vs-sapf"
+  },
   "icon": "images/sapf.png",
   "activationEvents": [
     "workspaceContains:**/{*.sapf}"
@@ -27,19 +38,19 @@
       },
       {
         "command": "sapf.stop",
-        "title": "sapf: <stop> stop any audio playing"
+        "title": "Stop any audio playing"
       },
       {
         "command": "sapf.clear",
-        "title": "sapf: <clear> clear everything off the stack"
+        "title": "Clear everything off the stack"
       },
       {
         "command": "sapf.cleard",
-        "title": "sapf: <cleard> clear all but the top item from the stack"
+        "title": "Clear all but the top item from the stack"
       },
       {
         "command": "sapf.quit",
-        "title": "sapf: <quit> quit sapf"
+        "title": "Quit sapf"
       }
     ],
     "keybindings": [
@@ -118,12 +129,12 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "package": "npx vsce package --allow-missing-repository"
+    "package": "npx vsce package"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
-    "@types/vscode": "^1.101.0",
+    "@types/vscode": "^1.98.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
     "@vscode/test-cli": "^0.0.10",

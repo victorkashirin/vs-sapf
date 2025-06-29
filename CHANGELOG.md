@@ -1,9 +1,11 @@
 # Change Log
 
-All notable changes to the "vsapf" extension will be documented in this file.
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
-## [Unreleased]
+## [0.0.1] - 2025-06-29
 
 - Initial release
+
+### Added
+
+- Autocomplete and helper popups
+- Line and block evaluation
