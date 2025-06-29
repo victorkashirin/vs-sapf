@@ -2,7 +2,7 @@
   "name": "vs-sapf",
   "displayName": "SAPF Language",
   "description": "Sound As Pure Form (SAPF) language support",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "engines": {
     "vscode": "^1.98.0"
   },
@@ -115,6 +115,26 @@
           "type": "boolean",
           "description": "Start sapf automatically when opening sapf file?",
           "default": true
+        },
+        "sapf.codeBlockBrackets": {
+          "type": "string",
+          "enum": [
+            "round",
+            "square",
+            "curly"
+          ],
+          "enumItemLabels": [
+            "(…)",
+            "[…]",
+            "{…}"
+          ],
+          "enumDescriptions": [
+            "Round brackets ( … )",
+            "Square brackets [ … ]",
+            "Curly brackets { … }"
+          ],
+          "default": "round",
+          "description": "Bracket style to mark code block"
         }
       }
     }

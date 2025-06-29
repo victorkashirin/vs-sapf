@@ -1,269 +1,289 @@
-import * as vscode from 'vscode';
-import * as keywordsData from './language.json';
+import * as vscode from "vscode";
+import keywordsData from "./language.json";
 
-let sapfTerminal: vscode.Terminal | undefined;
-
+/**
+ * Keyword metadata parsed from the JSON definition file.
+ */
 interface KeywordInfo {
+	keyword: string;
 	signature: string | null;
 	description: string;
 	category: string;
-	keyword: string; // Store the keyword itself for easier access
-	special: string | null; // For annotations like @zzz, @kkk etc.
+	special: string | null;
 }
 
-const sapfKeywords: Map<string, KeywordInfo> = new Map();
-
-function parseAndPopulateKeywords(categories: any) {
-	try {
-		for (const categoryName in categories) {
-			if (Object.prototype.hasOwnProperty.call(categories, categoryName)) {
-				const category = categories[categoryName];
-				const items = category.items;
-
-				for (const keyword in items) {
-					if (Object.prototype.hasOwnProperty.call(items, keyword)) {
-						let description = items[keyword];
-						let signature: string | null = null;
-						let special: string | null = null;
-
-						// Regex to find:
-						// 1. Optional special annotation like @zzz, @kkk (group 1)
-						// 2. The signature like (a b --> c) (group 2)
-						// 3. The remaining description (group 3)
-						const regex = /^(?:(@[a-z]+)\s*)?(\([^)]*?\s*-->\s*[^)]*?\))?\s*(.*)$/;
-						const match = description.match(regex);
-
-						if (match) {
-							special = match[1] || null;
-							signature = match[2] || null;
-							description = match[3] || description; // Use remaining part or original if no match
-						}
-
-						sapfKeywords.set(keyword, {
-							keyword: keyword,
-							signature: signature,
-							description: description.trim(), // Trim leading/trailing whitespace
-							category: categoryName,
-							special: special
-						});
-					}
-				}
-			}
-		}
-		console.debug(`Loaded ${sapfKeywords.size} SAPF keywords`);
-	} catch (e) {
-		console.error("Failed to parse SAPF keywords JSON:", e);
-	}
-}
-
+/**
+ * (Selection text, Range) tuple returned by helper extractors.
+ */
 interface BlockInfo {
 	text: string;
 	range: vscode.Range;
 }
 
-function getLine(editor: vscode.TextEditor): BlockInfo {
-	const selectedText = editor.document.getText(editor.selection);
-	if (selectedText) {
-		return { text: selectedText, range: editor.selection };
+const brackets: Record<string, [string, string]> = {
+	'round': ['(', ')'],
+	'square': ['[', ']'],
+	'curly': ['{', '}'],
+};
+
+/**
+ * Singleton in charge of creating and managing the SAPF REPL terminal.
+ */
+class ReplManager {
+	private terminal?: vscode.Terminal;
+
+	/** Ensure the REPL terminal exists and return it. */
+	ensure(): vscode.Terminal {
+		if (!this.terminal) {
+			const cfg = vscode.workspace.getConfiguration("sapf");
+			const binaryPath = cfg.get<string>("binaryPath", "sapf");
+			const preludePath = cfg.get<string>("preludePath", "");
+
+			this.terminal = vscode.window.createTerminal("sapf");
+			this.terminal.sendText(
+				`${binaryPath}${preludePath ? ` -p ${preludePath}` : ""}`
+			);
+			this.terminal.show(true);
+		}
+		return this.terminal;
 	}
 
-	const currentLine = editor.document.lineAt(editor.selection.active.line);
-	return {
-		text: currentLine.text.trim(),
-		range: currentLine.range
-	};
+	/** Send code to the REPL, creating it if necessary. */
+	send(code: string): void {
+		this.ensure().sendText(code, true);
+	}
+
+	/** Dispose the REPL terminal if it is ours. */
+	dispose(): void {
+		this.terminal?.dispose();
+		this.terminal = undefined;
+	}
+
+	/** Clear internal handle when the user closes the terminal manually. */
+	handleClose(closed: vscode.Terminal): void {
+		if (closed === this.terminal) {
+			this.terminal = undefined;
+		}
+	}
 }
 
+/**
+ * Parse the JSON language specification and return a Map keyed by **lower‑case** keyword.
+ */
+function loadKeywords(): Map<string, KeywordInfo> {
+	const map = new Map<string, KeywordInfo>();
+	const pattern =
+		/^(?:@(?<special>[a-z]+)\s*)?(?<signature>\([^)]*?-->\s*[^)]*?\))?\s*(?<description>.*)$/;
+
+	Object.entries(
+		keywordsData as Record<string, { items: Record<string, string> }>
+	).forEach(([category, { items }]) => {
+		Object.entries(items).forEach(([keyword, rawDescription]) => {
+			const match = rawDescription.match(pattern);
+
+			const special = match?.groups?.special ?? null;
+			const signature = match?.groups?.signature ?? null;
+			const description = (match?.groups?.description ?? rawDescription).trim();
+
+			map.set(keyword.toLowerCase(), {
+				keyword,
+				signature,
+				description,
+				category,
+				special,
+			});
+		});
+	});
+
+	console.debug(`Loaded ${map.size} SAPF keywords`);
+	return map;
+}
+
+/**
+ * Return the user selection or the current line when there is no selection.
+ */
+function getLine(editor: vscode.TextEditor): BlockInfo {
+	const selText = editor.document.getText(editor.selection);
+	if (selText) {
+		return { text: selText, range: editor.selection };
+	}
+
+	const line = editor.document.lineAt(editor.selection.active.line);
+	return { text: line.text.trim(), range: line.range };
+}
+
+/**
+ * Return the smallest enclosing parenthesis block or a single line if none.
+ */
 function getBlockOrLine(editor: vscode.TextEditor): BlockInfo {
-	const selectedText = editor.document.getText(editor.selection);
-	if (selectedText) {
-		return { text: selectedText, range: editor.selection };
+	const selText = editor.document.getText(editor.selection);
+	if (selText) {
+		return { text: selText, range: editor.selection };
 	}
 
 	const text = editor.document.getText();
-	const cursorOffset = editor.document.offsetAt(editor.selection.active);
+	const cursor = editor.document.offsetAt(editor.selection.active);
+	const bracketKind = vscode.workspace.getConfiguration('sapf').get("codeBlockBrackets", "round");
 
-	let highestStart = -1;
-	let highestEnd = -1;
+	const stack: number[] = [];
+	let start = -1;
+	let end = -1;
 
-	const openParensStack: number[] = [];
+	const [openBracket, closeBracket] = brackets[bracketKind];
 
 	for (let i = 0; i < text.length; i++) {
-		const char = text[i];
-
-		if (char === '(') {
-			openParensStack.push(i);
-		} else if (char === ')') {
-			if (openParensStack.length > 0) {
-				const currentStart = openParensStack.pop()!;
-				const currentEnd = i;
-
-				if (cursorOffset > currentStart && cursorOffset < currentEnd) {
-					if (highestStart === -1 || currentStart < highestStart) {
-						highestStart = currentStart;
-						highestEnd = currentEnd;
-					}
-				}
+		const ch = text[i];
+		if (ch === openBracket) {
+			stack.push(i);
+		} else if (ch === closeBracket && stack.length) {
+			const s = stack.pop()!;
+			if (s < cursor && i > cursor && (start === -1 || s < start)) {
+				start = s;
+				end = i;
 			}
 		}
 	}
 
-	// If we successfully found a highest enclosing block that contains the cursor
-	if (highestStart !== -1 && highestEnd !== -1) {
-		// Extract the content between the highest matching parentheses
-		const startPosition = editor.document.positionAt(highestStart);
-		const endPosition = editor.document.positionAt(highestEnd);
-		const blockRange = new vscode.Range(startPosition, endPosition);
-		const blockContent = text.slice(highestStart + 1, highestEnd);
-		const lines = blockContent.split(/\r?\n/).map(line => line.trim());
-		return { text: lines.join('\n'), range: blockRange };
+	if (start !== -1 && end !== -1) {
+		const range = new vscode.Range(
+			editor.document.positionAt(start),
+			editor.document.positionAt(end)
+		);
+		const block = text.slice(start + 1, end);
+		return { text: block, range };
 	}
 
-	const currentLine = editor.document.lineAt(editor.selection.active.line);
-	return {
-		text: currentLine.text.trim(),
-		range: currentLine.range
-	};
+	return getLine(editor);
 }
 
-export function activate(context: vscode.ExtensionContext) {
-	const configuration = vscode.workspace.getConfiguration();
-	parseAndPopulateKeywords(keywordsData)
-
-	context.subscriptions.push(vscode.languages.registerCompletionItemProvider("sapf", completionItemProvider));
-	context.subscriptions.push(vscode.languages.registerHoverProvider("sapf", hoverProvider));
-	context.subscriptions.push(vscode.commands.registerCommand('sapf.evalLine', evaluateLine));
-	context.subscriptions.push(vscode.commands.registerCommand('sapf.evalBlock', evaluateBlock));
-	context.subscriptions.push(vscode.commands.registerCommand('sapf.stop', sapfCommand("stop")))
-	context.subscriptions.push(vscode.commands.registerCommand('sapf.clear', sapfCommand("clear")))
-	context.subscriptions.push(vscode.commands.registerCommand('sapf.cleard', sapfCommand("cleard")))
-	context.subscriptions.push(vscode.commands.registerCommand('sapf.quit', sapfCommand("quit")))
-
-	if (configuration.get<boolean>("sapf.autostart")) {
-		ensureRepl();
-	}
-
-	vscode.window.onDidCloseTerminal((closedTerminal) => {
-		if (closedTerminal === sapfTerminal) {
-			sapfTerminal = undefined;
-		}
-	});
-}
-
-const completionItemProvider: vscode.CompletionItemProvider = {
-	provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
-		const linePrefix = document.lineAt(position).text.substring(0, position.character);
-		// Simple word regex to find the current word being typed
-		const wordMatch = linePrefix.match(/[\w\-\?]+$/);
-		const currentWord = wordMatch ? wordMatch[0] : '';
-
-		if (!currentWord) {
-			return undefined;
-		}
-
-		const completionItems: vscode.CompletionItem[] = [];
-		for (const [keywordName, keywordInfo] of sapfKeywords.entries()) {
-			if (keywordName.startsWith(currentWord)) {
-				const item = new vscode.CompletionItem(keywordName, vscode.CompletionItemKind.Function);
-
-				// Use signature for detail or first line of description
-				item.detail = keywordInfo.signature || keywordInfo.description.split('\n')[0];
-
-				// Create Markdown documentation
-				const docs = new vscode.MarkdownString();
-				docs.appendMarkdown(`**Category**: ${keywordInfo.category}\n\n`);
-				docs.appendCodeblock(`${keywordName} ${keywordInfo.special ? keywordInfo.special + ' ' : ''}${keywordInfo.signature || '(no signature)'}`, "sapf");
-				docs.appendMarkdown(`\n\n${keywordInfo.description}`);
-
-				item.documentation = docs;
-				completionItems.push(item);
-			}
-		}
-		return completionItems;
-	}
-};
-
-const hoverProvider: vscode.HoverProvider = {
-	provideHover(document: vscode.TextDocument, position: vscode.Position) {
-		const range = document.getWordRangeAtPosition(position);
-		if (!range) {
-			return undefined;
-		}
-		const word = document.getText(range);
-		const keywordInfo = sapfKeywords.get(word);
-
-		if (keywordInfo) {
-			const docs = new vscode.MarkdownString();
-			docs.appendMarkdown(`**Category**: ${keywordInfo.category}\n\n`);
-			docs.appendCodeblock(`${keywordInfo.keyword} ${keywordInfo.special ? keywordInfo.special + ' ' : ''}${keywordInfo.signature || '(no signature)'}`, "sapf");
-			docs.appendMarkdown(`\n\n${keywordInfo.description}`);
-			return new vscode.Hover(docs);
-		}
-		return undefined;
-	}
-}
-
-function ensureRepl() {
-	if (!sapfTerminal) {
-		sapfTerminal = vscode.window.createTerminal({ name: 'sapf' });
-		const configuration = vscode.workspace.getConfiguration();
-		const binaryPath = configuration.get<string>('sapf.binaryPath') || '';
-		const preludePath = configuration.get<string>('sapf.preludePath') || '';
-		const command = binaryPath + (preludePath ? ` -p ${preludePath}` : '');
-		sapfTerminal.sendText(command)
-		sapfTerminal.show(true);
-	}
-}
-
-function evaluateLine() {
-	const editor = vscode.window.activeTextEditor;
-	if (!editor) {
-		return;
-	}
-	const blockInfo = getLine(editor);
-	flashRange(editor, blockInfo.range);
-	sendCodeToRepl(blockInfo.text);
-}
-
-function evaluateBlock() {
-	const editor = vscode.window.activeTextEditor;
-	if (!editor) {
-		return;
-	}
-	const blockInfo = getBlockOrLine(editor);
-	flashRange(editor, blockInfo.range);
-	sendCodeToRepl(blockInfo.text);
-}
-
-function sapfCommand(command: string): () => void {
-	return function () {
-		sendCodeToRepl(command);
-	}
-}
-
-function sendCodeToRepl(code: string) {
-	ensureRepl();
-	sapfTerminal?.sendText(code, true);
-}
-
-export async function deactivate() {
-	if (sapfTerminal) {
-		sapfTerminal.dispose();
-		sapfTerminal = undefined;
-	}
-}
-
-function flashRange(editor: vscode.TextEditor, range: vscode.Range) {
-	const flashBackgroundColor = new vscode.ThemeColor('editor.wordHighlightBackground');
-	const evaluateDecorator = vscode.window.createTextEditorDecorationType({
-		backgroundColor: flashBackgroundColor,
+/** Briefly highlights a range to signal evaluation. */
+function flash(editor: vscode.TextEditor, range: vscode.Range): void {
+	const decoration = vscode.window.createTextEditorDecorationType({
+		backgroundColor: new vscode.ThemeColor("editor.wordHighlightBackground"),
 		isWholeLine: true,
-		rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed
+		rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
 	});
 
-	editor.setDecorations(evaluateDecorator, [range]);
-
-	setTimeout(() => {
-		evaluateDecorator.dispose();
-	}, 200);
+	editor.setDecorations(decoration, [range]);
+	setTimeout(() => decoration.dispose(), 200);
 }
+
+/**
+ * Register completion & hover providers for SAPF.
+ */
+function registerLanguageFeatures(
+	context: vscode.ExtensionContext,
+	keywords: Map<string, KeywordInfo>
+): void {
+	// Completion
+	const WORD_REGEX = /[\w$?!]+$/;
+	context.subscriptions.push(
+		vscode.languages.registerCompletionItemProvider(
+			"sapf",
+			{
+				provideCompletionItems(doc, position) {
+					const prefix = doc.lineAt(position).text.slice(0, position.character);
+					const match = prefix.match(WORD_REGEX);
+					const current = match?.[0] ?? "";
+					if (!current) {
+						return undefined;
+					}
+					const currentLower = current.toLowerCase();
+
+					const start = position.translate(0, -current.length);
+					const range = new vscode.Range(start, position);
+
+					return [...keywords.values()]
+						.filter(({ keyword }) =>
+							keyword.toLowerCase().startsWith(currentLower)
+						)
+						.map(({ keyword, signature, description, category, special }) => {
+							const item = new vscode.CompletionItem(
+								keyword,
+								vscode.CompletionItemKind.Function
+							);
+
+							item.range = range;
+							item.detail = signature ?? description.split("\n")[0];
+
+							const md = new vscode.MarkdownString(undefined, true);
+							md.appendMarkdown(`**Category**: ${category}\n\n`);
+							md.appendCodeblock(
+								`${keyword} ${special ? `${special} ` : ""}${signature ?? "(no signature)"
+								}`,
+								"sapf"
+							);
+							md.appendMarkdown(`\n\n${description}`);
+
+							item.documentation = md;
+							return item;
+						});
+				},
+			},
+			..."abcdefghijklmnopqrstuvwxyz0123456789$?!".split("")
+		)
+	);
+
+	// Hover
+	context.subscriptions.push(
+		vscode.languages.registerHoverProvider("sapf", {
+			provideHover(doc, position) {
+				const range = doc.getWordRangeAtPosition(position);
+				if (!range) {
+					return undefined;
+				}
+
+				const wordLower = doc.getText(range).toLowerCase();
+				const info = keywords.get(wordLower);
+				if (!info) {
+					return undefined;
+				}
+
+				const md = new vscode.MarkdownString(undefined, true);
+				md.appendMarkdown(`**Category**: ${info.category}\n\n`);
+				md.appendCodeblock(
+					`${info.keyword} ${info.special ? `${info.special} ` : ""}${info.signature ?? "(no signature)"
+					}`,
+					"sapf"
+				);
+				md.appendMarkdown(`\n\n${info.description}`);
+
+				return new vscode.Hover(md);
+			},
+		})
+	);
+}
+
+export function activate(context: vscode.ExtensionContext): void {
+	const keywords = loadKeywords();
+	const repl = new ReplManager();
+
+	registerLanguageFeatures(context, keywords);
+
+	// Helper to create evaluation commands.
+	const makeEval = (resolver: (e: vscode.TextEditor) => BlockInfo) => () => {
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) return;
+
+		const block = resolver(editor);
+		flash(editor, block.range);
+		repl.send(block.text);
+	};
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand("sapf.evalLine", makeEval(getLine)),
+		vscode.commands.registerCommand("sapf.evalBlock", makeEval(getBlockOrLine)),
+		vscode.commands.registerCommand("sapf.stop", () => repl.send("stop")),
+		vscode.commands.registerCommand("sapf.clear", () => repl.send("clear")),
+		vscode.commands.registerCommand("sapf.cleard", () => repl.send("cleard")),
+		vscode.commands.registerCommand("sapf.quit", () => repl.send("quit")),
+		vscode.window.onDidCloseTerminal((closed) => repl.handleClose(closed))
+	);
+
+	// Auto-start the REPL if configured.
+	if (vscode.workspace.getConfiguration("sapf").get<boolean>("autostart", false)) {
+		repl.ensure();
+	}
+}
+
+export function deactivate(): void { }
