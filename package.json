@@ -1,7 +1,7 @@
 {
   "name": "vs-sapf",
   "displayName": "SAPF Language",
-  "description": "SAPF language support",
+  "description": "Sound As Pure Form (SAPF) language support",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.101.0"
