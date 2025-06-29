@@ -4,7 +4,7 @@ This extension provides interactive support for working with the [sapf](https://
 
 ### Features
 
-* Commands for evaluating the current line, selection, or code block (surrounded by parentheses)
+* Commands for evaluating the current line, selection, or code block (surrounded by `()` parentheses)
 * Function autocompletion and hover-based documentation (powered by config from [sapf-lsp](https://github.com/vasilymilovidov/sapf-lsp))
 * Built-in support for `stop`, `clear`, `cleard`, and `quit` commands
 * Support for a custom prelude file
@@ -17,6 +17,10 @@ There is also an excellent VS Code extension for `sapf` by [chairbender](https:/
 * `Shift+Enter`: Evaluate the current block, or the line/selection if no block is found
 * `Cmd+.`: Stop sound
 * `Cmd+Shift+.`: Clear the stack
+
+### Demo
+
+![VS-SAPF demo](./images/demo.gif)
 
 ### Inspiration
 
