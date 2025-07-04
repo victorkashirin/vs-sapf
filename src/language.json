@@ -261,11 +261,18 @@
       "hanWin": "(x --> z) hanning window for x in the interval [0,1]",
       "sinWin": "(x --> z) sine window for x in the interval [0,1]",
       "ramp": "(x --> z) return 0 when x <= 0, return x when 0 < x < 1, return 1 when x > 1.",
-      "scurve": "(x --> z) return 0 when x <= 0, return 3*x*x - 2*x*x*x when 0 < x < 1, return 1 when x > 1."
+      "scurve": "(x --> z) return 0 when x <= 0, return 3*x*x - 2*x*x*x when 0 < x < 1, return 1 when x > 1.",
+      "zapgremlins": "(x --> z)"
     }
   },
   "binary math ops": {
     "items": {
+      "op/": "(list --> z) reducing math operator.",
+      "op\\": "(list --> z) scanning math operator.",
+      "op^": "(list --> z) pairwise math operator.",
+      "op/i": "(list init --> z) reducing math operator with initial value.",
+      "op\\i": "(list init --> z) scanning math operator with initial value.",
+      "op^i": "(list init --> z) pairwise math operator with initial value.",
       "+": "(x y --> z) addition.",
       "+>": "(x y --> z) addition. For lists, acts as if shorter list were extended with zeroes.",
       "-": "(x y --> z) subtraction.",
@@ -421,6 +428,7 @@
       "mum": "@z (t --> signal) returns a signal of t seconds of silence.",
       "$": "(listA listB --> out) returns the concatenation of listA and listB.",
       "$z": "@zz (signalA signalB --> signal) returns the concatenation of signalA and signalB.",
+      "$$": "(listA listB --> out) return the concatenation of the sublists of listA and listB. equivalent to (listA @ listB @ $)",
       "$/": "(list --> out) returns the concatenation of the sub-lists of the input list.",
       "flat": "(list --> list) flattens a list.",
       "flatten": "@ak (list n --> list) makes a list n levels flatter.",
@@ -677,7 +685,12 @@
     }
   },
   "classic wave tables": {
-    "items": {}
+    "items": {
+      "parTbl": "parabolic wave table.",
+      "triTbl": "triangle wave table.",
+      "sqrTbl": "square wave table.",
+      "sawTbl": "sawtooth wave table."
+    }
   },
   "oscillator unit generators": {
     "items": {
@@ -1286,6 +1299,7 @@
   },
   "events": {
     "items": {
+      "ev-base": "a form containing the basic low level information for a music event.",
       "ev-dur": "(inEvents --> dur) return the duration of inEvents.",
       "ev-starts": "(inEvents --> startTimes) return a stream of start times for inEvents",
       "ev-end": "(inEvents --> endTime) return the maximum end time of inEvents.",

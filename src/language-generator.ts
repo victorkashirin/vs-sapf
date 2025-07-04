@@ -90,7 +90,8 @@ export function parseSapfHelpOutput(output: string): Record<string, { items: Rec
 		
 		// Parse function definitions
 		if (currentCategory && line.trim() && !line.startsWith(' Argument Automapping')) {
-			const functionMatch = line.match(/^ ([!-~][\w?!\-#%&*+/<=>\^|~]*) (\([^)]*\)|@\w+\s*\([^)]*\)) (.+)$/);
+			// Try main pattern: function with signature and description
+			const functionMatch = line.match(/^ ([^\s]+) (\([^)]*\)|@\w+\s*\([^)]*\)) (.+)$/);
 			if (functionMatch) {
 				const [, functionName, signature, description] = functionMatch;
 				
@@ -112,6 +113,30 @@ export function parseSapfHelpOutput(output: string): Record<string, { items: Rec
 				}
 				
 				result[currentCategory].items[functionName] = fullDescription;
+			}
+			// Try pattern for operator variants with extra indentation (op/, op\, etc.)
+			else if (line.match(/^\s{6,}/)) {
+				const opMatch = line.match(/^\s+([^\s]+)\s+(\([^)]*\))\s+(.+)$/);
+				if (opMatch) {
+					const [, functionName, signature, description] = opMatch;
+					result[currentCategory].items[functionName] = `${signature} ${description}`;
+				}
+			}
+			// Try pattern for functions with signature but no description (or just whitespace)
+			else {
+				const sigOnlyMatch = line.match(/^ ([^\s]+) (\([^)]*\)|@\w+\s*\([^)]*\))\s*$/);
+				if (sigOnlyMatch) {
+					const [, functionName, signature] = sigOnlyMatch;
+					result[currentCategory].items[functionName] = signature;
+				}
+				// Try pattern for functions without signature (name - description)
+				else {
+					const noSigMatch = line.match(/^ ([^\s]+) - (.+)$/);
+					if (noSigMatch) {
+						const [, functionName, description] = noSigMatch;
+						result[currentCategory].items[functionName] = description;
+					}
+				}
 			}
 		}
 	}
