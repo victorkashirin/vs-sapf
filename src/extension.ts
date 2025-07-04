@@ -98,7 +98,7 @@ function loadKeywords(
       try {
         const localData = JSON.parse(fs.readFileSync(localLanguagePath, 'utf8'));
         data = localData;
-        // Using local language definitions from language-local.json
+        // Using local function definitions from language-local.json
       } catch {
         // Failed to parse language-local.json, falling back to default
         data = keywordsData as Record<string, { items: Record<string, string> }>;
@@ -305,12 +305,12 @@ export function activate(context: vscode.ExtensionContext): void {
       repl.send(block.text);
     };
 
-  // Remove local language definitions command
-  const removeLocalLanguageCommand = vscode.commands.registerCommand('sapf.removeLocalLanguage', async () => {
+  // Remove local function definitions command
+  const removeLocalLanguageCommand = vscode.commands.registerCommand('sapf.removeFunctionDefinitions', async () => {
     const localLanguagePath = path.join(context.extensionPath, 'language-local.json');
 
     if (!fs.existsSync(localLanguagePath)) {
-      vscode.window.showInformationMessage('No local language definition found to remove.');
+      vscode.window.showInformationMessage('No local function definition found to remove.');
       return;
     }
 
@@ -320,19 +320,19 @@ export function activate(context: vscode.ExtensionContext): void {
       // Dispose old providers
       languageProviders.forEach((provider) => provider.dispose());
 
-      // Reload with default language definitions
+      // Reload with default function definitions
       keywords = loadKeywords(undefined, context.extensionPath);
       languageProviders = registerLanguageFeatures(keywords);
       context.subscriptions.push(...languageProviders);
 
-      vscode.window.showInformationMessage('Local language definition removed. Using default language definitions.');
+      vscode.window.showInformationMessage('Local function definition removed. Using default function definitions.');
     } catch (error) {
-      vscode.window.showErrorMessage(`Failed to remove local language definition: ${error}`);
+      vscode.window.showErrorMessage(`Failed to remove local function definition: ${error}`);
     }
   });
 
-  // Regenerate language definitions command
-  const regenerateLanguageCommand = vscode.commands.registerCommand('sapf.regenerateLanguage', async () => {
+  // Regenerate function definitions command
+  const regenerateLanguageCommand = vscode.commands.registerCommand('sapf.regenerateFunctionDefinitions', async () => {
     try {
       const cfg = vscode.workspace.getConfiguration('sapf');
       const sapfPath = cfg.get<string>('binaryPath', 'sapf');
@@ -341,7 +341,7 @@ export function activate(context: vscode.ExtensionContext): void {
       // Check if prelude path is configured
       if (!preludePath) {
         const result = await vscode.window.showWarningMessage(
-          'To generate complete language definitions, please configure the prelude file path in settings.',
+          'To generate complete function definitions, please configure the prelude file path in settings.',
           'Open Settings',
           'Continue Without Prelude',
         );
@@ -356,7 +356,7 @@ export function activate(context: vscode.ExtensionContext): void {
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: 'Regenerating SAPF language definitions...',
+          title: 'Regenerating SAPF function definitions...',
           cancellable: false,
         },
         async (progress) => {
@@ -364,7 +364,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
           const newLanguageData = await generateLanguageDefinitions(sapfPath, preludePath);
 
-          progress.report({ increment: 50, message: 'Parsing language definitions...' });
+          progress.report({ increment: 50, message: 'Parsing function definitions...' });
 
           // Save to language-local.json
           const languageFilePath = path.join(context.extensionPath, 'language-local.json');
@@ -392,12 +392,12 @@ export function activate(context: vscode.ExtensionContext): void {
           }
 
           vscode.window.showInformationMessage(
-            `Successfully regenerated SAPF language definitions! Loaded ${totalFunctions} functions.`,
+            `Successfully regenerated SAPF function definitions! Loaded ${totalFunctions} functions.`,
           );
         },
       );
     } catch (error) {
-      vscode.window.showErrorMessage(`Failed to regenerate language definitions: ${error}`);
+      vscode.window.showErrorMessage(`Failed to regenerate function definitions: ${error}`);
     }
   });
 

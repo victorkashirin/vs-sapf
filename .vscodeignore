@@ -12,3 +12,10 @@ vsc-extension-quickstart.md
 images/design
 scripts/
 language-local.json
+.env
+CLAUDE.md
+.claude
+.prettierignore
+sapf-helpall.txt
+
+

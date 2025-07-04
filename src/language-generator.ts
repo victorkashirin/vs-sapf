@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import { spawn } from 'child_process';
 
 /**
- * Generate language definitions from SAPF helpall output
+ * Generate function definitions from SAPF helpall output
  */
 export async function generateLanguageDefinitions(
   sapfPath: string,
@@ -56,12 +56,12 @@ export async function generateLanguageDefinitions(
     // Parse the output
     return parseSapfHelpOutput(output);
   } catch (error) {
-    throw new Error(`Failed to generate language definitions: ${error}`);
+    throw new Error(`Failed to generate function definitions: ${error}`);
   }
 }
 
 /**
- * Parse SAPF helpall output into structured language definitions
+ * Parse SAPF helpall output into structured function definitions
  */
 export function parseSapfHelpOutput(output: string): Record<string, { items: Record<string, string> }> {
   const lines = output.split('\n');

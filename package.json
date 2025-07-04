@@ -2,7 +2,7 @@
   "name": "vs-sapf",
   "displayName": "SAPF Language",
   "description": "Sound As Pure Form (SAPF) language support",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "engines": {
     "vscode": "^1.98.0"
   },
@@ -30,15 +30,15 @@
     "commands": [
       {
         "command": "sapf.evalLine",
-        "title": "Evaluate current line or selection"
+        "title": "SAPF: Evaluate current line or selection"
       },
       {
         "command": "sapf.evalBlock",
-        "title": "Evaluate block surrounded by parenthesis or selection"
+        "title": "SAPF: Evaluate block surrounded by parenthesis or selection"
       },
       {
         "command": "sapf.stop",
-        "title": "Stop any audio playing"
+        "title": "SAPF: Stop any audio playing"
       },
       {
         "command": "sapf.clear",
@@ -50,15 +50,15 @@
       },
       {
         "command": "sapf.quit",
-        "title": "Quit sapf"
+        "title": "SAPF: quit"
       },
       {
-        "command": "sapf.regenerateLanguage",
-        "title": "SAPF: Regenerate Language Definitions"
+        "command": "sapf.regenerateFunctionDefinitions",
+        "title": "SAPF: Regenerate Local Function Definitions"
       },
       {
-        "command": "sapf.removeLocalLanguage",
-        "title": "SAPF: Remove Local Language Definitions"
+        "command": "sapf.removeFunctionDefinitions",
+        "title": "SAPF: Remove Local Function Definitions"
       }
     ],
     "keybindings": [
@@ -116,7 +116,7 @@
         },
         "sapf.preludePath": {
           "type": "string",
-          "default": "/Users/victorkashirin/bin/sapf-files/sapf-prelude.sapf",
+          "default": "",
           "description": "Custom path to prelude file"
         },
         "sapf.autostart": {
