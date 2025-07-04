@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
+import { spawn } from "child_process";
 import keywordsData from "./language.json";
 
 /**
@@ -90,7 +90,7 @@ function loadKeywords(languageData?: Record<string, { items: Record<string, stri
 	let data = languageData;
 	
 	if (!data && extensionPath) {
-		const localLanguagePath = path.join(extensionPath, "src", "language-local.json");
+		const localLanguagePath = path.join(extensionPath, "language-local.json");
 		if (fs.existsSync(localLanguagePath)) {
 			try {
 				const localData = JSON.parse(fs.readFileSync(localLanguagePath, 'utf8'));
@@ -211,14 +211,50 @@ function flash(editor: vscode.TextEditor, range: vscode.Range): void {
 /**
  * Generate language definitions from SAPF helpall output
  */
-async function generateLanguageDefinitions(sapfPath: string): Promise<Record<string, { items: Record<string, string> }>> {
+async function generateLanguageDefinitions(sapfPath: string, preludePath?: string): Promise<Record<string, { items: Record<string, string> }>> {
 	try {
-		// Generate helpall output
-		const command = `echo "helpall\\nquit" | ${sapfPath}`;
-		const output = execSync(command, { 
-			encoding: 'utf8',
-			timeout: 30000,
-			stdio: ['pipe', 'pipe', 'pipe']
+		// Build command arguments
+		const args: string[] = [];
+		if (preludePath && fs.existsSync(preludePath)) {
+			args.push('-p', preludePath);
+		} else if (preludePath) {
+			throw new Error(`Prelude file not found: ${preludePath}`);
+		}
+		
+		// Generate helpall output using spawn
+		const output = await new Promise<string>((resolve, reject) => {
+			const child = spawn(sapfPath, args, {
+				stdio: ['pipe', 'pipe', 'pipe'],
+				env: process.env
+			});
+			
+			let stdout = '';
+			let stderr = '';
+			
+			child.stdout.on('data', (data) => {
+				stdout += data.toString();
+			});
+			
+			child.stderr.on('data', (data) => {
+				stderr += data.toString();
+			});
+			
+			child.on('close', (code) => {
+				if (code === 0) {
+					resolve(stdout);
+				} else {
+					reject(new Error(`Process exited with code ${code}. stderr: ${stderr}`));
+				}
+			});
+			
+			child.on('error', (err) => {
+				reject(err);
+			});
+			
+			// Send helpall command and quit
+			child.stdin.write('helpall\n');
+			child.stdin.write('quit\n');
+			child.stdin.end();
 		});
 
 		// Parse the output
@@ -386,7 +422,7 @@ export function activate(context: vscode.ExtensionContext): void {
 	const removeLocalLanguageCommand = vscode.commands.registerCommand(
 		"sapf.removeLocalLanguage",
 		async () => {
-			const localLanguagePath = path.join(context.extensionPath, "src", "language-local.json");
+			const localLanguagePath = path.join(context.extensionPath, "language-local.json");
 			
 			if (!fs.existsSync(localLanguagePath)) {
 				vscode.window.showInformationMessage("No local language definition found to remove.");
@@ -418,6 +454,22 @@ export function activate(context: vscode.ExtensionContext): void {
 			try {
 				const cfg = vscode.workspace.getConfiguration("sapf");
 				const sapfPath = cfg.get<string>("binaryPath", "sapf");
+				const preludePath = cfg.get<string>("preludePath", "");
+				
+				// Check if prelude path is configured
+				if (!preludePath) {
+					const result = await vscode.window.showWarningMessage(
+						"To generate complete language definitions, please configure the prelude file path in settings.",
+						"Open Settings",
+						"Continue Without Prelude"
+					);
+					
+					if (result === "Open Settings") {
+						vscode.commands.executeCommand('workbench.action.openSettings', 'sapf.preludePath');
+						return;
+					}
+					// If "Continue Without Prelude" is selected, proceed without prelude
+				}
 				
 				await vscode.window.withProgress(
 					{
@@ -428,12 +480,12 @@ export function activate(context: vscode.ExtensionContext): void {
 					async (progress) => {
 						progress.report({ increment: 0, message: "Generating helpall output..." });
 						
-						const newLanguageData = await generateLanguageDefinitions(sapfPath);
+						const newLanguageData = await generateLanguageDefinitions(sapfPath, preludePath);
 						
 						progress.report({ increment: 50, message: "Parsing language definitions..." });
 						
 						// Save to language-local.json
-						const languageFilePath = path.join(context.extensionPath, "src", "language-local.json");
+						const languageFilePath = path.join(context.extensionPath, "language-local.json");
 						fs.writeFileSync(languageFilePath, JSON.stringify(newLanguageData, null, 2));
 						
 						progress.report({ increment: 75, message: "Reloading language features..." });
