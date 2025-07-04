@@ -800,6 +800,7 @@
     "items": {
       "S": "(list --> set) removes all duplicates from a finite list.",
       "Sx": "(listA listB --> set) returns the set of the elements which occur in list A or B, but not both.",
+      "S-": "(listA listB --> set) returns the set of the elements of listA which do not occur in listB.",
       "subset?": "(listA listB --> set) returns 1 if the set of elements of listA is a subset of the set of elements of listB. else 0.",
       "find": "(item(s) list --> set) returns index of item in finite list, or -1 if not in list.",
       "Shas": "(item(s) list --> set) returns 1 if finite list contains item(s), else 0."
@@ -1084,7 +1085,12 @@
     }
   },
   "12 tone pitch set operations": {
-    "items": {}
+    "items": {
+      "ps-norm": "(x --> y) pitch set normalization.",
+      "ps-inv": "(x --> y) pitch set mirror inversion.",
+      "ps-rot": "(x --> y) return a normalized rotation of a pitch set x.",
+      "ps-rots": "(x --> y) return a list of all normalized rotations of a pitch set x."
+    }
   },
   "pitch operations": {
     "items": {
@@ -1111,10 +1117,23 @@
   "synths": {
     "items": {
       "blah": "(pch dyn dur pan -> outs) saw->filter->amp synth voice",
-      "lfblah": "(pch dyn dur pan -> outs) lfsaw->filter->amp synth voice"
+      "lfblah": "(pch dyn dur pan -> outs) lfsaw->filter->amp synth voice",
+      "saw-syn": "(freq db dur pan harms adsr --> out) sawtooth wave synth",
+      "square-syn": "(freq db dur pan harms adsr --> out) square wave synth",
+      "pulse-syn": "(freq duty db dur pan harms adsr --> out) variable width pulse wave synth",
+      "osc-syn": "(freq db dur pan harms adsr wt --> out) wavetable oscillator synth",
+      "saw-rsyn": "(freq db dur pan harms rq adsr --> out) sawtooth wave synth with resonant lpf",
+      "square-rsyn": "(freq db dur pan harms rq adsr --> out) square wave synth with resonant lpf",
+      "fm-syn": "(freq c m mx fb db dur pan adsr --> out) fm synth",
+      "fm-syn3": "(freq c m mx fb db dur pan adsr --> out) 3 detuned carrier, 1 modulator fm"
     }
   },
   "events": {
-    "items": {}
+    "items": {
+      "ev-dur": "(inEvents --> dur) return the duration of inEvents.",
+      "ev-starts": "(inEvents --> startTimes) return a stream of start times for inEvents",
+      "ev-end": "(inEvents --> endTime) return the maximum end time of inEvents.",
+      "ev-reverse": "(inEvents --> outEvents) reverse an event list."
+    }
   }
 }

@@ -87,7 +87,7 @@ export function parseSapfHelpOutput(output: string): Record<string, { items: Rec
 		
 		// Parse function definitions
 		if (currentCategory && line.trim() && !line.startsWith(' Argument Automapping')) {
-			const functionMatch = line.match(/^ ([!][\w?!]*|[\w][\w?!]*) (\([^)]*\)|@\w+\s*\([^)]*\)) (.+)$/);
+			const functionMatch = line.match(/^ ([!][\w?!\-]*|[\w][\w?!\-]*) (\([^)]*\)|@\w+\s*\([^)]*\)) (.+)$/);
 			if (functionMatch) {
 				const [, functionName, signature, description] = functionMatch;
 				
