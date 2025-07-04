@@ -51,6 +51,14 @@
       {
         "command": "sapf.quit",
         "title": "Quit sapf"
+      },
+      {
+        "command": "sapf.regenerateLanguage",
+        "title": "SAPF: Regenerate Language Definitions"
+      },
+      {
+        "command": "sapf.removeLocalLanguage",
+        "title": "SAPF: Remove Local Language Definitions"
       }
     ],
     "keybindings": [

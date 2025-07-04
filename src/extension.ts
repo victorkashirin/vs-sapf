@@ -1,4 +1,7 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
+import { execSync } from "child_process";
 import keywordsData from "./language.json";
 
 /**
@@ -39,18 +42,31 @@ class ReplManager {
 			const binaryPath = cfg.get<string>("binaryPath", "sapf");
 			const preludePath = cfg.get<string>("preludePath", "");
 
-			this.terminal = vscode.window.createTerminal("sapf");
-			this.terminal.sendText(
-				`${binaryPath}${preludePath ? ` -p ${preludePath}` : ""}`
-			);
-			this.terminal.show(true);
+			// Validate prelude path if provided
+			if (preludePath && !fs.existsSync(preludePath)) {
+				vscode.window.showWarningMessage(`Prelude file not found: ${preludePath}`);
+			}
+
+			try {
+				this.terminal = vscode.window.createTerminal("sapf");
+				const command = `${binaryPath}${preludePath && fs.existsSync(preludePath) ? ` -p ${preludePath}` : ""}`;
+				this.terminal.sendText(command);
+				this.terminal.show(true);
+			} catch (error) {
+				vscode.window.showErrorMessage(`Failed to start SAPF terminal: ${error}`);
+				throw error;
+			}
 		}
 		return this.terminal;
 	}
 
 	/** Send code to the REPL, creating it if necessary. */
 	send(code: string): void {
-		this.ensure().sendText(code, true);
+		try {
+			this.ensure().sendText(code, true);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to send code to SAPF: ${error}`);
+		}
 	}
 
 	/** Dispose the REPL terminal if it is ours. */
@@ -70,14 +86,32 @@ class ReplManager {
 /**
  * Parse the JSON language specification and return a Map keyed by **lower‑case** keyword.
  */
-function loadKeywords(): Map<string, KeywordInfo> {
+function loadKeywords(languageData?: Record<string, { items: Record<string, string> }>, extensionPath?: string): Map<string, KeywordInfo> {
+	let data = languageData;
+	
+	if (!data && extensionPath) {
+		const localLanguagePath = path.join(extensionPath, "src", "language-local.json");
+		if (fs.existsSync(localLanguagePath)) {
+			try {
+				const localData = JSON.parse(fs.readFileSync(localLanguagePath, 'utf8'));
+				data = localData;
+				console.log("Using local language definitions from language-local.json");
+			} catch (error) {
+				console.warn("Failed to parse language-local.json, falling back to default:", error);
+				data = keywordsData as Record<string, { items: Record<string, string> }>;
+			}
+		} else {
+			data = keywordsData as Record<string, { items: Record<string, string> }>;
+		}
+	} else if (!data) {
+		data = keywordsData as Record<string, { items: Record<string, string> }>;
+	}
+	
 	const map = new Map<string, KeywordInfo>();
 	const pattern =
 		/^(?:@(?<special>[a-z]+)\s*)?(?<signature>\([^)]*?-->\s*[^)]*?\))?\s*(?<description>.*)$/;
 
-	Object.entries(
-		keywordsData as Record<string, { items: Record<string, string> }>
-	).forEach(([category, { items }]) => {
+	Object.entries(data!).forEach(([category, { items }]) => {
 		Object.entries(items).forEach(([keyword, rawDescription]) => {
 			const match = rawDescription.match(pattern);
 
@@ -123,7 +157,13 @@ function getBlockOrLine(editor: vscode.TextEditor): BlockInfo {
 
 	const text = editor.document.getText();
 	const cursor = editor.document.offsetAt(editor.selection.active);
-	const bracketKind = vscode.workspace.getConfiguration('sapf').get("codeBlockBrackets", "round");
+	let bracketKind = vscode.workspace.getConfiguration('sapf').get("codeBlockBrackets", "round");
+
+	// Validate bracket configuration
+	if (!brackets[bracketKind]) {
+		vscode.window.showWarningMessage(`Invalid bracket type: ${bracketKind}, using 'round'`);
+		bracketKind = "round";
+	}
 
 	const stack: number[] = [];
 	let start = -1;
@@ -169,106 +209,263 @@ function flash(editor: vscode.TextEditor, range: vscode.Range): void {
 }
 
 /**
+ * Generate language definitions from SAPF helpall output
+ */
+async function generateLanguageDefinitions(sapfPath: string): Promise<Record<string, { items: Record<string, string> }>> {
+	try {
+		// Generate helpall output
+		const command = `echo "helpall\\nquit" | ${sapfPath}`;
+		const output = execSync(command, { 
+			encoding: 'utf8',
+			timeout: 30000,
+			stdio: ['pipe', 'pipe', 'pipe']
+		});
+
+		// Parse the output
+		const lines = output.split('\n');
+		const result: Record<string, { items: Record<string, string> }> = {};
+		let currentCategory: string | null = null;
+		let inFunctionSection = false;
+		
+		for (const line of lines) {
+			// Skip header lines until we reach "BUILT IN FUNCTIONS"
+			if (line.includes('BUILT IN FUNCTIONS')) {
+				inFunctionSection = true;
+				continue;
+			}
+			
+			if (!inFunctionSection) {
+				continue;
+			}
+			
+			// Detect category headers: *** category name ***
+			const categoryMatch = line.match(/^\*\*\* (.+) \*\*\*$/);
+			if (categoryMatch) {
+				currentCategory = categoryMatch[1];
+				result[currentCategory] = { items: {} };
+				continue;
+			}
+			
+			// Parse function definitions
+			if (currentCategory && line.trim() && !line.startsWith(' Argument Automapping')) {
+				const functionMatch = line.match(/^ ([!][\w?!]*|[\w][\w?!]*) (\([^)]*\)|@\w+\s*\([^)]*\)) (.+)$/);
+				if (functionMatch) {
+					const [, functionName, signature, description] = functionMatch;
+					
+					// Handle special annotations like @k, @kk, @ak
+					let special = null;
+					let cleanSignature = signature;
+					const specialMatch = signature.match(/^@(\w+)\s*(.+)$/);
+					if (specialMatch) {
+						special = specialMatch[1];
+						cleanSignature = specialMatch[2];
+					}
+					
+					// Build description with special annotation if present
+					let fullDescription = description;
+					if (special) {
+						fullDescription = `@${special} ${cleanSignature} ${description}`;
+					} else {
+						fullDescription = `${cleanSignature} ${description}`;
+					}
+					
+					result[currentCategory].items[functionName] = fullDescription;
+				}
+			}
+		}
+		
+		return result;
+	} catch (error) {
+		throw new Error(`Failed to generate language definitions: ${error}`);
+	}
+}
+
+/**
  * Register completion & hover providers for SAPF.
  */
 function registerLanguageFeatures(
-	context: vscode.ExtensionContext,
 	keywords: Map<string, KeywordInfo>
-): void {
+): vscode.Disposable[] {
 	// Completion
 	const WORD_REGEX = /[\w$?!]+$/;
-	context.subscriptions.push(
-		vscode.languages.registerCompletionItemProvider(
-			"sapf",
-			{
-				provideCompletionItems(doc, position) {
-					const prefix = doc.lineAt(position).text.slice(0, position.character);
-					const match = prefix.match(WORD_REGEX);
-					const current = match?.[0] ?? "";
-					if (!current) {
-						return undefined;
-					}
-					const currentLower = current.toLowerCase();
+	const completionProvider = vscode.languages.registerCompletionItemProvider(
+		"sapf",
+		{
+			provideCompletionItems(doc, position) {
+				const prefix = doc.lineAt(position).text.slice(0, position.character);
+				const match = prefix.match(WORD_REGEX);
+				const current = match?.[0] ?? "";
+				if (!current) {
+					return undefined;
+				}
+				const currentLower = current.toLowerCase();
 
-					const start = position.translate(0, -current.length);
-					const range = new vscode.Range(start, position);
+				const start = position.translate(0, -current.length);
+				const range = new vscode.Range(start, position);
 
-					return [...keywords.values()]
-						.filter(({ keyword }) =>
-							keyword.toLowerCase().startsWith(currentLower)
-						)
-						.map(({ keyword, signature, description, category, special }) => {
-							const item = new vscode.CompletionItem(
-								keyword,
-								vscode.CompletionItemKind.Function
-							);
+				return [...keywords.values()]
+					.filter(({ keyword }) =>
+						keyword.toLowerCase().startsWith(currentLower)
+					)
+					.map(({ keyword, signature, description, category, special }) => {
+						const item = new vscode.CompletionItem(
+							keyword,
+							vscode.CompletionItemKind.Function
+						);
 
-							item.range = range;
-							item.detail = signature ?? description.split("\n")[0];
+						item.range = range;
+						item.detail = signature ?? description.split("\n")[0];
 
-							const md = new vscode.MarkdownString(undefined, true);
-							md.appendMarkdown(`**Category**: ${category}\n\n`);
-							md.appendCodeblock(
-								`${keyword} ${special ? `${special} ` : ""}${signature ?? "(no signature)"
-								}`,
-								"sapf"
-							);
-							md.appendMarkdown(`\n\n${description}`);
+						const md = new vscode.MarkdownString(undefined, true);
+						md.appendMarkdown(`**Category**: ${category}\n\n`);
+						md.appendCodeblock(
+							`${keyword} ${special ? `${special} ` : ""}${signature ?? "(no signature)"
+							}`,
+							"sapf"
+						);
+						md.appendMarkdown(`\n\n${description}`);
 
-							item.documentation = md;
-							return item;
-						});
-				},
+						item.documentation = md;
+						return item;
+					});
 			},
-			..."abcdefghijklmnopqrstuvwxyz0123456789$?!".split("")
-		)
+		},
+		..."abcdefghijklmnopqrstuvwxyz0123456789$?!".split("")
 	);
 
 	// Hover
-	context.subscriptions.push(
-		vscode.languages.registerHoverProvider("sapf", {
-			provideHover(doc, position) {
-				const range = doc.getWordRangeAtPosition(position);
-				if (!range) {
-					return undefined;
-				}
+	const hoverProvider = vscode.languages.registerHoverProvider("sapf", {
+		provideHover(doc, position) {
+			const range = doc.getWordRangeAtPosition(position);
+			if (!range) {
+				return undefined;
+			}
 
-				const wordLower = doc.getText(range).toLowerCase();
-				const info = keywords.get(wordLower);
-				if (!info) {
-					return undefined;
-				}
+			const wordLower = doc.getText(range).toLowerCase();
+			const info = keywords.get(wordLower);
+			if (!info) {
+				return undefined;
+			}
 
-				const md = new vscode.MarkdownString(undefined, true);
-				md.appendMarkdown(`**Category**: ${info.category}\n\n`);
-				md.appendCodeblock(
-					`${info.keyword} ${info.special ? `${info.special} ` : ""}${info.signature ?? "(no signature)"
-					}`,
-					"sapf"
-				);
-				md.appendMarkdown(`\n\n${info.description}`);
+			const md = new vscode.MarkdownString(undefined, true);
+			md.appendMarkdown(`**Category**: ${info.category}\n\n`);
+			md.appendCodeblock(
+				`${info.keyword} ${info.special ? `${info.special} ` : ""}${info.signature ?? "(no signature)"
+				}`,
+				"sapf"
+			);
+			md.appendMarkdown(`\n\n${info.description}`);
 
-				return new vscode.Hover(md);
-			},
-		})
-	);
+			return new vscode.Hover(md);
+		},
+	});
+
+	return [completionProvider, hoverProvider];
 }
 
 export function activate(context: vscode.ExtensionContext): void {
-	const keywords = loadKeywords();
+	let keywords = loadKeywords(undefined, context.extensionPath);
 	const repl = new ReplManager();
 
-	registerLanguageFeatures(context, keywords);
+	let languageProviders = registerLanguageFeatures(keywords);
+	context.subscriptions.push(...languageProviders);
 
 	// Helper to create evaluation commands.
 	const makeEval = (resolver: (e: vscode.TextEditor) => BlockInfo) => () => {
 		const editor = vscode.window.activeTextEditor;
-		if (!editor) return;
+		if (!editor) {
+			return;
+		}
 
 		const block = resolver(editor);
 		flash(editor, block.range);
 		repl.send(block.text);
 	};
+
+	// Remove local language definitions command
+	const removeLocalLanguageCommand = vscode.commands.registerCommand(
+		"sapf.removeLocalLanguage",
+		async () => {
+			const localLanguagePath = path.join(context.extensionPath, "src", "language-local.json");
+			
+			if (!fs.existsSync(localLanguagePath)) {
+				vscode.window.showInformationMessage("No local language definition found to remove.");
+				return;
+			}
+			
+			try {
+				fs.unlinkSync(localLanguagePath);
+				
+				// Dispose old providers
+				languageProviders.forEach(provider => provider.dispose());
+				
+				// Reload with default language definitions
+				keywords = loadKeywords(undefined, context.extensionPath);
+				languageProviders = registerLanguageFeatures(keywords);
+				context.subscriptions.push(...languageProviders);
+				
+				vscode.window.showInformationMessage("Local language definition removed. Using default language definitions.");
+			} catch (error) {
+				vscode.window.showErrorMessage(`Failed to remove local language definition: ${error}`);
+			}
+		}
+	);
+
+	// Regenerate language definitions command
+	const regenerateLanguageCommand = vscode.commands.registerCommand(
+		"sapf.regenerateLanguage",
+		async () => {
+			try {
+				const cfg = vscode.workspace.getConfiguration("sapf");
+				const sapfPath = cfg.get<string>("binaryPath", "sapf");
+				
+				await vscode.window.withProgress(
+					{
+						location: vscode.ProgressLocation.Notification,
+						title: "Regenerating SAPF language definitions...",
+						cancellable: false,
+					},
+					async (progress) => {
+						progress.report({ increment: 0, message: "Generating helpall output..." });
+						
+						const newLanguageData = await generateLanguageDefinitions(sapfPath);
+						
+						progress.report({ increment: 50, message: "Parsing language definitions..." });
+						
+						// Save to language-local.json
+						const languageFilePath = path.join(context.extensionPath, "src", "language-local.json");
+						fs.writeFileSync(languageFilePath, JSON.stringify(newLanguageData, null, 2));
+						
+						progress.report({ increment: 75, message: "Reloading language features..." });
+						
+						// Dispose old providers
+						languageProviders.forEach(provider => provider.dispose());
+						
+						// Load new keywords and register new providers
+						keywords = loadKeywords(newLanguageData);
+						languageProviders = registerLanguageFeatures(keywords);
+						context.subscriptions.push(...languageProviders);
+						
+						progress.report({ increment: 100, message: "Complete!" });
+						
+						// Count functions
+						let totalFunctions = 0;
+						for (const category in newLanguageData) {
+							totalFunctions += Object.keys(newLanguageData[category].items).length;
+						}
+						
+						vscode.window.showInformationMessage(
+							`Successfully regenerated SAPF language definitions! Loaded ${totalFunctions} functions.`
+						);
+					}
+				);
+			} catch (error) {
+				vscode.window.showErrorMessage(
+					`Failed to regenerate language definitions: ${error}`
+				);
+			}
+		}
+	);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("sapf.evalLine", makeEval(getLine)),
@@ -277,6 +474,8 @@ export function activate(context: vscode.ExtensionContext): void {
 		vscode.commands.registerCommand("sapf.clear", () => repl.send("clear")),
 		vscode.commands.registerCommand("sapf.cleard", () => repl.send("cleard")),
 		vscode.commands.registerCommand("sapf.quit", () => repl.send("quit")),
+		regenerateLanguageCommand,
+		removeLocalLanguageCommand,
 		vscode.window.onDidCloseTerminal((closed) => repl.handleClose(closed))
 	);
 
@@ -286,4 +485,6 @@ export function activate(context: vscode.ExtensionContext): void {
 	}
 }
 
-export function deactivate(): void { }
+export function deactivate(): void {
+	// Extension cleanup if needed
+}
