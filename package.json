@@ -163,6 +163,46 @@
           ],
           "default": "round",
           "description": "Bracket style to mark code block"
+        },
+        "sapf.completionInfo": {
+          "type": "string",
+          "enum": [
+            "off",
+            "minimum",
+            "full"
+          ],
+          "enumItemLabels": [
+            "Off",
+            "Minimum",
+            "Full"
+          ],
+          "enumDescriptions": [
+            "Don't show any completion info",
+            "Show only function signature",
+            "Show full documentation"
+          ],
+          "default": "full",
+          "description": "How much information to show for SAPF code completion info."
+        },
+        "sapf.hoverInfo": {
+          "type": "string",
+          "enum": [
+            "off",
+            "minimum",
+            "full"
+          ],
+          "enumItemLabels": [
+            "Off",
+            "Minimum",
+            "Full"
+          ],
+          "enumDescriptions": [
+            "Don't show any hover info",
+            "Show only function signature",
+            "Show full documentation"
+          ],
+          "default": "full",
+          "description": "How much information to show for hovering sapf code info."
         }
       }
     }

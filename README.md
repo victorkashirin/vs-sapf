@@ -4,8 +4,8 @@ This extension provides interactive support for working with the [sapf](https://
 
 ### Features
 
-* Commands for evaluating the current line, selection, code block (surrounded by `()` parentheses), or paragraph (text between empty lines)
-* Function autocompletion and hover-based documentation (powered by config from [sapf-lsp](https://github.com/vasilymilovidov/sapf-lsp))
+* Commands for evaluating the current line, selection, code block (surrounded by configurable parentheses pair), or paragraph (text between empty lines)
+* Function autocompletion and hover-based documentation with configurable information levels
 * Built-in support for `stop`, `clear`, `cleard`, and `quit` commands
 * Support for a custom prelude file
 * Dynamic function definition regeneration from your SAPF installation

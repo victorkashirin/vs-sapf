@@ -282,7 +282,7 @@ function formatSapfCode(code: string): string {
 
   for (const line of lines) {
     const trimmedLine = line.trim();
-    
+
     // Skip empty lines
     if (trimmedLine === '') {
       formatted.push('');
@@ -341,20 +341,19 @@ function lintSapfDocument(editor: vscode.TextEditor): void {
   const formatted = formatSapfCode(text);
 
   if (text !== formatted) {
-    const fullRange = new vscode.Range(
-      document.positionAt(0),
-      document.positionAt(text.length)
-    );
+    const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(text.length));
 
-    editor.edit(editBuilder => {
-      editBuilder.replace(fullRange, formatted);
-    }).then(success => {
-      if (success) {
-        vscode.window.showInformationMessage('SAPF code formatted successfully');
-      } else {
-        vscode.window.showErrorMessage('Failed to format SAPF code');
-      }
-    });
+    editor
+      .edit((editBuilder) => {
+        editBuilder.replace(fullRange, formatted);
+      })
+      .then((success) => {
+        if (success) {
+          vscode.window.showInformationMessage('SAPF code formatted successfully');
+        } else {
+          vscode.window.showErrorMessage('Failed to format SAPF code');
+        }
+      });
   } else {
     vscode.window.showInformationMessage('SAPF code is already properly formatted');
   }
@@ -370,6 +369,10 @@ function registerLanguageFeatures(keywords: Map<string, KeywordInfo>): vscode.Di
     'sapf',
     {
       provideCompletionItems(doc, position) {
+        const config = vscode.workspace.getConfiguration('sapf');
+        const completionInfo = config.get<string>('completionInfo', 'full');
+
+
         const prefix = doc.lineAt(position).text.slice(0, position.character);
         const match = prefix.match(wordRegex);
         const current = match?.[0] ?? '';
@@ -384,17 +387,26 @@ function registerLanguageFeatures(keywords: Map<string, KeywordInfo>): vscode.Di
             const item = new vscode.CompletionItem(keyword, vscode.CompletionItemKind.Function);
 
             item.range = range;
-            item.detail = signature ?? description.split('\n')[0] ?? '';
 
-            const md = new vscode.MarkdownString(undefined, true);
-            md.appendMarkdown(`**Category**: ${category}\n\n`);
-            md.appendCodeblock(
-              `${keyword} ${special !== null ? `${special} ` : ''}${signature ?? '(no signature)'}`,
-              'sapf',
-            );
-            md.appendMarkdown(`\n\n${description}`);
+            if (completionInfo === 'off') {
+              // Just provide the function name without any details
+            } else if (completionInfo === 'minimum') {
+              item.detail = signature ?? '(no signature)';
+            } else {
+              // 'full'
+              item.detail = signature ?? description.split('\n')[0] ?? '';
 
-            item.documentation = md;
+              const md = new vscode.MarkdownString(undefined, true);
+              md.appendMarkdown(`**Category**: ${category}\n\n`);
+              md.appendCodeblock(
+                `${keyword} ${special !== null ? `${special} ` : ''}${signature ?? '(no signature)'}`,
+                'sapf',
+              );
+              md.appendMarkdown(`\n\n${description}`);
+
+              item.documentation = md;
+            }
+
             return item;
           });
       },
@@ -405,6 +417,13 @@ function registerLanguageFeatures(keywords: Map<string, KeywordInfo>): vscode.Di
   // Hover
   const hoverProvider = vscode.languages.registerHoverProvider('sapf', {
     provideHover(doc, position) {
+      const config = vscode.workspace.getConfiguration('sapf');
+      const hoverInfo = config.get<string>('hoverInfo', 'full');
+
+      if (hoverInfo === 'off') {
+        return undefined;
+      }
+
       const range = doc.getWordRangeAtPosition(position);
       if (!range) {
         return undefined;
@@ -417,12 +436,18 @@ function registerLanguageFeatures(keywords: Map<string, KeywordInfo>): vscode.Di
       }
 
       const md = new vscode.MarkdownString(undefined, true);
-      md.appendMarkdown(`**Category**: ${info.category}\n\n`);
-      md.appendCodeblock(
-        `${info.keyword} ${info.special !== null ? `${info.special} ` : ''}${info.signature ?? '(no signature)'}`,
-        'sapf',
-      );
-      md.appendMarkdown(`\n\n${info.description}`);
+
+      if (hoverInfo === 'minimum') {
+        md.appendCodeblock(`${info.keyword} ${info.signature ?? '(no signature)'}`, 'sapf');
+      } else {
+        // 'full'
+        md.appendMarkdown(`**Category**: ${info.category}\n\n`);
+        md.appendCodeblock(
+          `${info.keyword} ${info.special !== null ? `${info.special} ` : ''}${info.signature ?? '(no signature)'}`,
+          'sapf',
+        );
+        md.appendMarkdown(`\n\n${info.description}`);
+      }
 
       return new vscode.Hover(md);
     },
