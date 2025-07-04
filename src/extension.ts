@@ -224,9 +224,6 @@ function registerLanguageFeatures(
 				const prefix = doc.lineAt(position).text.slice(0, position.character);
 				const match = prefix.match(WORD_REGEX);
 				const current = match?.[0] ?? "";
-				if (!current) {
-					return undefined;
-				}
 				const currentLower = current.toLowerCase();
 
 				const start = position.translate(0, -current.length);
@@ -234,7 +231,7 @@ function registerLanguageFeatures(
 
 				return [...keywords.values()]
 					.filter(({ keyword }) =>
-						keyword.toLowerCase().startsWith(currentLower)
+						!current || keyword.toLowerCase().startsWith(currentLower)
 					)
 					.map(({ keyword, signature, description, category, special }) => {
 						const item = new vscode.CompletionItem(
