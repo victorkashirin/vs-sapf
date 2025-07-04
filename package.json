@@ -116,7 +116,7 @@
         },
         "sapf.preludePath": {
           "type": "string",
-          "default": "",
+          "default": "/Users/victorkashirin/bin/sapf-files/sapf-prelude.sapf",
           "description": "Custom path to prelude file"
         },
         "sapf.autostart": {
@@ -154,7 +154,8 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "package": "npx vsce package"
+    "package": "npx vsce package",
+    "build-language": "npm run compile && node scripts/generate-language.js"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
@@ -165,6 +166,7 @@
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.6.0",
+    "dotenv": "^17.0.1",
     "eslint": "^9.25.1",
     "typescript": "^5.8.3"
   }

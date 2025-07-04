@@ -7,3 +7,4 @@ node_modules
 images/design
 language-local.json
 sapf-helpall.txt
+.env
