@@ -37,6 +37,10 @@
         "title": "SAPF: Evaluate block surrounded by parenthesis or selection"
       },
       {
+        "command": "sapf.evalParagraph",
+        "title": "SAPF: Evaluate paragraph (text between empty lines)"
+      },
+      {
         "command": "sapf.stop",
         "title": "SAPF: Stop any audio playing"
       },
@@ -71,6 +75,12 @@
       {
         "command": "sapf.evalBlock",
         "key": "shift+enter",
+        "when": "editorTextFocus && editorLangId == 'sapf'"
+      },
+      {
+        "command": "sapf.evalParagraph",
+        "key": "ctrl+shift+enter",
+        "mac": "cmd+shift+enter",
         "when": "editorTextFocus && editorLangId == 'sapf'"
       },
       {

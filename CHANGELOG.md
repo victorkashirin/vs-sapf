@@ -1,5 +1,18 @@
 # Change Log
 
+## [1.3.0] - 2025-07-04
+
+### Added
+
+- Paragraph evaluation: Evaluate text between empty lines using `Cmd+Shift+Enter` (Mac) / `Ctrl+Shift+Enter` (Windows/Linux)
+
+## [1.2.0] - 2025-07-05
+
+### Added
+
+- Generate function definitions that support autocomplete and help files from local environment
+- Fix autocomplete for empty prefix
+
 ## [1.1.0] - 2025-06-30
 
 ### Added
