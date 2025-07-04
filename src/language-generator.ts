@@ -81,13 +81,16 @@ export function parseSapfHelpOutput(output: string): Record<string, { items: Rec
 		const categoryMatch = line.match(/^\*\*\* (.+) \*\*\*$/);
 		if (categoryMatch) {
 			currentCategory = categoryMatch[1];
-			result[currentCategory] = { items: {} };
+			// Only create new category if it doesn't exist, otherwise merge
+			if (!result[currentCategory]) {
+				result[currentCategory] = { items: {} };
+			}
 			continue;
 		}
 		
 		// Parse function definitions
 		if (currentCategory && line.trim() && !line.startsWith(' Argument Automapping')) {
-			const functionMatch = line.match(/^ ([!][\w?!\-]*|[\w][\w?!\-]*) (\([^)]*\)|@\w+\s*\([^)]*\)) (.+)$/);
+			const functionMatch = line.match(/^ ([!-~][\w?!\-#%&*+/<=>\^|~]*) (\([^)]*\)|@\w+\s*\([^)]*\)) (.+)$/);
 			if (functionMatch) {
 				const [, functionName, signature, description] = functionMatch;
 				
