@@ -146,8 +146,8 @@ function getLine(editor: vscode.TextEditor): BlockInfo {
     return { text: selText, range: editor.selection };
   }
 
-  const line = editor.document.lineAt(editor.selection.active.line);
-  return { text: line.text.trim(), range: line.range };
+  const { text, range } = editor.document.lineAt(editor.selection.active.line);
+  return { text: text.trim(), range };
 }
 
 /**
@@ -159,7 +159,7 @@ function getParagraph(editor: vscode.TextEditor): BlockInfo {
     return { text: selText, range: editor.selection };
   }
 
-  const document = editor.document;
+  const { document } = editor;
   const cursorLine = editor.selection.active.line;
   const totalLines = document.lineCount;
 
@@ -267,6 +267,97 @@ function flash(editor: vscode.TextEditor, range: vscode.Range): void {
   editor.setDecorations(decoration, [range]);
   const flashDuration = 200;
   setTimeout(() => decoration.dispose(), flashDuration);
+}
+
+/**
+ * Format SAPF code by trimming extra spaces and properly indenting brackets.
+ * SAPF is a stack-based language where most code should be at the base level,
+ * with only content inside brackets being indented.
+ */
+function formatSapfCode(code: string): string {
+  const lines = code.split('\n');
+  const formatted: string[] = [];
+  let indentLevel = 0;
+  const indentSize = 2;
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    
+    // Skip empty lines
+    if (trimmedLine === '') {
+      formatted.push('');
+      continue;
+    }
+
+    // Normalize spaces - replace multiple spaces with single spaces
+    const normalizedLine = trimmedLine.replace(/\s+/g, ' ');
+
+    // Special handling for comments - indent them to current level
+    if (normalizedLine.startsWith(';;')) {
+      const indent = ' '.repeat(indentLevel * indentSize);
+      formatted.push(indent + normalizedLine);
+      continue;
+    }
+
+    // Count brackets to determine indentation
+    let lineIndent = indentLevel;
+    let openingBrackets = 0;
+    let closingBrackets = 0;
+
+    // Check if line starts with closing bracket
+    const startsWithClosing = /^[)\]}]/.test(normalizedLine);
+    if (startsWithClosing) {
+      lineIndent = Math.max(0, indentLevel - 1);
+    }
+
+    // Count all brackets in the line
+    for (const char of normalizedLine) {
+      if (char === '(' || char === '[' || char === '{') {
+        openingBrackets++;
+      } else if (char === ')' || char === ']' || char === '}') {
+        closingBrackets++;
+      }
+    }
+
+    // Apply indentation and add line
+    const indent = ' '.repeat(lineIndent * indentSize);
+    formatted.push(indent + normalizedLine);
+
+    // Update indent level for next line
+    // In SAPF, we only indent content inside brackets
+    const netBrackets = openingBrackets - closingBrackets;
+    indentLevel = Math.max(0, indentLevel + netBrackets);
+  }
+
+  return formatted.join('\n');
+}
+
+/**
+ * Lint and format the current SAPF document.
+ */
+function lintSapfDocument(editor: vscode.TextEditor): void {
+  const { document } = editor;
+  const text = document.getText();
+  const formatted = formatSapfCode(text);
+
+  if (text !== formatted) {
+    const fullRange = new vscode.Range(
+      document.positionAt(0),
+      document.positionAt(text.length)
+    );
+
+    editor.edit(editBuilder => {
+      editBuilder.replace(fullRange, formatted);
+    }).then(success => {
+      if (success) {
+        vscode.window.showInformationMessage('SAPF code formatted successfully');
+      } else {
+        vscode.window.showErrorMessage('Failed to format SAPF code');
+      }
+    });
+  } else {
+    vscode.window.showInformationMessage('SAPF code is already properly formatted');
+  }
 }
 
 /**
@@ -465,6 +556,18 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('sapf.clear', () => repl.send('clear')),
     vscode.commands.registerCommand('sapf.cleard', () => repl.send('cleard')),
     vscode.commands.registerCommand('sapf.quit', () => repl.send('quit')),
+    vscode.commands.registerCommand('sapf.format', () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showErrorMessage('No active editor');
+        return;
+      }
+      if (editor.document.languageId !== 'sapf') {
+        vscode.window.showErrorMessage('This command only works with SAPF files');
+        return;
+      }
+      lintSapfDocument(editor);
+    }),
     regenerateLanguageCommand,
     removeLocalLanguageCommand,
     vscode.window.onDidCloseTerminal((closed) => repl.handleClose(closed)),

@@ -5,6 +5,7 @@
 ### Added
 
 - Paragraph evaluation: Evaluate text between empty lines using `Cmd+Shift+Enter` (Mac) / `Ctrl+Shift+Enter` (Windows/Linux)
+- Code formatting: Format SAPF code with automatic indentation and space normalization
 
 ## [1.2.0] - 2025-07-05
 

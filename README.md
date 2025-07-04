@@ -9,6 +9,7 @@ This extension provides interactive support for working with the [sapf](https://
 * Built-in support for `stop`, `clear`, `cleard`, and `quit` commands
 * Support for a custom prelude file
 * Dynamic function definition regeneration from your SAPF installation
+* Code formatting with automatic indentation and space normalization
 
 There is also an excellent VS Code extension for `sapf` by [chairbender](https://github.com/chairbender/vscode-sapf). The main difference is that it relies on an external LSP server. While this approach has its benefits, it requires more setup effort.
 
@@ -19,6 +20,23 @@ There is also an excellent VS Code extension for `sapf` by [chairbender](https:/
 * `Cmd+Shift+Enter` (Mac) / `Ctrl+Shift+Enter` (Windows/Linux): Evaluate the current paragraph (text between empty lines)
 * `Cmd+.` (Mac) / `Ctrl+.` (Windows/Linux): Stop sound
 * `Cmd+Shift+.` (Mac) / `Ctrl+Shift+.` (Windows/Linux): Clear the stack
+* `Cmd+Shift+I` (Mac) / `Ctrl+Shift+I` (Windows/Linux): Format code
+
+### Code Formatting
+
+The extension includes a built-in code formatter that helps maintain clean and consistent SAPF code.
+
+#### Format Code
+**Command**: `SAPF: Format Code`
+**Shortcut**: `Cmd+Shift+I` (Mac) / `Ctrl+Shift+I` (Windows/Linux)
+
+The formatter automatically:
+- **Normalizes spacing**: Converts multiple spaces to single spaces
+- **Indents brackets**: Properly indents content within parentheses, square brackets, and curly braces
+- **Aligns comments**: Indents comments to match their surrounding code block
+- **Preserves structure**: Maintains empty lines and overall code organization
+
+The formatter respects SAPF's stack-based nature, keeping most code at the base level while only indenting content that's actually within brackets.
 
 ### Function Definition Management
 
