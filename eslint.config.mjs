@@ -1,28 +1,124 @@
 import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
+import prettierConfig from "eslint-config-prettier";
 
-export default [{
-    files: ["**/*.ts"],
-}, {
-    plugins: {
-        "@typescript-eslint": typescriptEslint,
+export default [
+    {
+        files: ["**/*.ts"],
+        plugins: {
+            "@typescript-eslint": typescriptEslint,
+        },
+        languageOptions: {
+            parser: tsParser,
+            ecmaVersion: 2022,
+            sourceType: "module",
+            parserOptions: {
+                project: "./tsconfig.json",
+            },
+        },
+        rules: {
+            // TypeScript-specific rules
+            "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+            "@typescript-eslint/no-explicit-any": "warn",
+            "@typescript-eslint/explicit-function-return-type": "warn",
+            "@typescript-eslint/no-non-null-assertion": "warn",
+            "@typescript-eslint/prefer-optional-chain": "error",
+            "@typescript-eslint/prefer-nullish-coalescing": "error",
+            "@typescript-eslint/strict-boolean-expressions": "warn",
+            "@typescript-eslint/no-floating-promises": "error",
+            "@typescript-eslint/await-thenable": "error",
+            "@typescript-eslint/no-misused-promises": "error",
+            "@typescript-eslint/prefer-readonly": "warn",
+            "@typescript-eslint/prefer-readonly-parameter-types": "off",
+            "@typescript-eslint/consistent-type-imports": "error",
+            "@typescript-eslint/consistent-type-exports": "error",
+            "@typescript-eslint/no-import-type-side-effects": "error",
+            "@typescript-eslint/naming-convention": [
+                "warn",
+                {
+                    selector: "import",
+                    format: ["camelCase", "PascalCase"],
+                },
+                {
+                    selector: "variableLike",
+                    format: ["camelCase"],
+                },
+                {
+                    selector: "typeLike",
+                    format: ["PascalCase"],
+                },
+                {
+                    selector: "enumMember",
+                    format: ["PascalCase"],
+                },
+            ],
+
+            // General JavaScript/TypeScript rules
+            "no-console": "warn",
+            "no-debugger": "error",
+            "no-alert": "error",
+            "no-eval": "error",
+            "no-implied-eval": "error",
+            "no-new-func": "error",
+            "no-script-url": "error",
+            "no-void": "error",
+            "no-with": "error",
+            "prefer-const": "error",
+            "no-var": "error",
+            "object-shorthand": "error",
+            "prefer-arrow-callback": "error",
+            "prefer-template": "error",
+            "prefer-destructuring": "warn",
+            "no-duplicate-imports": "error",
+            "no-useless-rename": "error",
+            "no-useless-computed-key": "error",
+            "no-useless-constructor": "error",
+            "no-useless-return": "error",
+            "array-callback-return": "error",
+            "consistent-return": "error",
+            "default-case": "error",
+            "dot-notation": "error",
+            "guard-for-in": "error",
+            "no-caller": "error",
+            "no-case-declarations": "error",
+            "no-empty-function": "warn",
+            "no-empty-pattern": "error",
+            "no-fallthrough": "error",
+            "no-global-assign": "error",
+            "no-implicit-coercion": "error",
+            "no-implicit-globals": "error",
+            "no-loop-func": "error",
+            "no-magic-numbers": ["warn", { ignore: [0, 1, -1] }],
+            "no-multi-assign": "error",
+            "no-new": "error",
+            "no-new-wrappers": "error",
+            "no-param-reassign": "error",
+            "no-proto": "error",
+            "no-redeclare": "error",
+            "no-return-assign": "error",
+            "no-self-assign": "error",
+            "no-self-compare": "error",
+            "no-sequences": "error",
+            "no-shadow": "off", // Handled by @typescript-eslint/no-shadow
+            "@typescript-eslint/no-shadow": "error",
+            "no-throw-literal": "error",
+            "no-unmodified-loop-condition": "error",
+            "no-unused-expressions": "error",
+            "no-useless-call": "error",
+            "no-useless-concat": "error",
+            "radix": "error",
+            "yoda": "error",
+            "curly": ["error", "all"],
+            "eqeqeq": ["error", "always", { "null": "ignore" }],
+            "semi": ["error", "always"],
+            "comma-dangle": ["error", "always-multiline"],
+            "quotes": ["error", "single", { avoidEscape: true }],
+            "indent": ["error", 2],
+            "max-len": ["warn", { code: 120 }],
+            "no-trailing-spaces": "error",
+            "no-multiple-empty-lines": ["error", { max: 2, maxEOF: 1 }],
+            "eol-last": "error",
+        },
     },
-
-    languageOptions: {
-        parser: tsParser,
-        ecmaVersion: 2022,
-        sourceType: "module",
-    },
-
-    rules: {
-        "@typescript-eslint/naming-convention": ["warn", {
-            selector: "import",
-            format: ["camelCase", "PascalCase"],
-        }],
-
-        curly: "warn",
-        eqeqeq: "warn",
-        "no-throw-literal": "warn",
-        semi: "warn",
-    },
-}];
+    prettierConfig,
+];

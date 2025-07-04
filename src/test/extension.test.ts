@@ -6,10 +6,18 @@ import * as vscode from 'vscode';
 // import * as myExtension from '../../extension';
 
 suite('Extension Test Suite', () => {
-	vscode.window.showInformationMessage('Start all tests.');
+  vscode.window.showInformationMessage('Start all tests.');
 
-	test('Sample test', () => {
-		assert.strictEqual(-1, [1, 2, 3].indexOf(5));
-		assert.strictEqual(-1, [1, 2, 3].indexOf(0));
-	});
+  test('Sample test', () => {
+    const firstValue = 1;
+    const secondValue = 2;
+    const thirdValue = 3;
+    const testArray = [firstValue, secondValue, thirdValue];
+    const notFoundValue = 5;
+    const anotherNotFoundValue = 0;
+    const expectedNotFoundIndex = -1;
+
+    assert.strictEqual(expectedNotFoundIndex, testArray.indexOf(notFoundValue));
+    assert.strictEqual(expectedNotFoundIndex, testArray.indexOf(anotherNotFoundValue));
+  });
 });
