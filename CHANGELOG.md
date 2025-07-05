@@ -1,6 +1,6 @@
 # Change Log
 
-## [1.3.0] - 2025-07-04
+## [1.3.0] - 2025-07-05
 
 ### Added
 
@@ -8,7 +8,7 @@
 - Code formatting: Format SAPF code with automatic indentation and space normalization
 - Configuration options to control hover and autocomplete information levels (Off/Minimum/Full)
 
-## [1.2.0] - 2025-07-05
+## [1.2.0] - 2025-07-04
 
 ### Added
 
