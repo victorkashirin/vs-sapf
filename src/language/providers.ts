@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { KeywordInfo, CompletionInfoLevel, HoverInfoLevel } from './types';
+import type { KeywordInfo, CompletionInfoLevel, HoverInfoLevel } from '../config/types';
 import { wordRegex, completionTriggerCharacters } from '../config/constants';
 
 /**

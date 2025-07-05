@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ReplManager } from './manager';
-import type { BlockInfo } from '../language/types';
+import type { BlockInfo } from '../config/types';
 import { flash } from '../text/utils';
 
 /**

@@ -4,7 +4,7 @@ import * as path from 'path';
 import { generateLanguageDefinitions } from './generator';
 import { loadKeywords } from './parser';
 import { LanguageProviderFactory } from './providers';
-import type { LanguageData, KeywordInfo } from './types';
+import type { LanguageData, KeywordInfo } from '../config/types';
 import { lintSapfDocument } from '../text/formatter';
 
 export class LanguageCommands {

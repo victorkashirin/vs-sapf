@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { BlockInfo } from '../language/types';
+import type { BlockInfo } from '../config/types';
 import { flashDuration } from '../config/constants';
 
 /**

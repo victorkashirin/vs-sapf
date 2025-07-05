@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { BlockInfo, BracketType } from '../language/types';
+import type { BlockInfo, BracketType } from '../config/types';
 import { brackets, defaultBracketType } from '../config/constants';
 import { getLine } from './utils';
 

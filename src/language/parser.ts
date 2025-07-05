@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import keywordsData from '../language.json';
-import type { KeywordInfo, LanguageData } from './types';
+import type { KeywordInfo, LanguageData } from '../config/types';
 import { languagePattern } from '../config/constants';
 
 /**
